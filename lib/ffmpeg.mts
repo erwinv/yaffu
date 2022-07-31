@@ -3,7 +3,7 @@ import { writeFile } from 'fs/promises'
 import { basename, dirname, extname, join } from 'path'
 import { Readable } from 'stream'
 import { unlinkNoThrow } from './util.mjs'
-import { FilterGraph } from './filter.mjs'
+import { FilterGraph } from './graph.mjs'
 
 export class FFmpegError extends Error {
   constructor(public exitCode: number) {

@@ -1,5 +1,5 @@
 import _ from 'lodash-es'
-import { FilterGraph } from './filter.mjs'
+import { FilterGraph } from './graph.mjs'
 
 export async function mixAudio(
   graph: FilterGraph,
@@ -11,7 +11,7 @@ export async function mixAudio(
   for (const [i, audioKey] of audioKeys.entries()) {
     const delay = delays[i] ?? 0
     graph
-      .transform([audioKey], [`rec${i}`])
+      .pipe([audioKey], [`rec${i}`])
       .filter('aresample', [48000], { async: 1 })
       .filter('pan', [
         ['stereo', 'FL<FL+0.5*FC+0.6*BL+0.6*SL', 'FR<FR+0.5*FC+0.6*BR+0.6*SR'],
@@ -22,7 +22,7 @@ export async function mixAudio(
 
   const recKeys = _.range(audioKeys.length).map((i) => `rec${i}`)
   graph
-    .transform(recKeys, outputKeys)
+    .pipe(recKeys, outputKeys)
     .filter('amix', [], { inputs: recKeys.length, normalize: 0 })
     .filter('dynaudnorm')
     .filterIf(
@@ -39,7 +39,7 @@ export async function renderCamWithThumbnail(
   // TODO generalize n=0..N
   const [v0, v1, v2] = graph.getLeafStreams('video')
   graph
-    .transform([v0], ['cam0'])
+    .pipe([v0], ['cam0'])
     .filter('trim', [], {
       start: 4,
       end: 6,
@@ -53,7 +53,7 @@ export async function renderCamWithThumbnail(
     .filter('tpad', [], { start_duration: 2 })
 
   graph
-    .transform([v1], ['cam1'])
+    .pipe([v1], ['cam1'])
     .filter('trim', [], {
       start: 4,
       end: 6,
@@ -67,7 +67,7 @@ export async function renderCamWithThumbnail(
     .filter('tpad', [], { start_duration: 6 })
 
   graph
-    .transform([v2], ['cam2'])
+    .pipe([v2], ['cam2'])
     .filter('trim', [], {
       start: 4,
       end: 6,
@@ -79,7 +79,7 @@ export async function renderCamWithThumbnail(
     .filter('tpad', [], { start_duration: 10 })
 
   graph
-    .transform([], ['thumb'])
+    .pipe([], ['thumb'])
     .filter('color', [], {
       size: `${1280 - 16}x${720 - 8}`,
       color: '0x63666A',
@@ -94,15 +94,15 @@ export async function renderCamWithThumbnail(
     })
     .filter('pad', [1280, 720, -1, -1, 'black'])
 
-  graph.transform(['thumb', 'cam0'], ['ovl0']).filter('overlay', [], {
+  graph.pipe(['thumb', 'cam0'], ['ovl0']).filter('overlay', [], {
     enable: `'gte(t,2)'`,
     eof_action: 'pass',
   })
-  graph.transform(['ovl0', 'cam1'], ['ovl1']).filter('overlay', [], {
+  graph.pipe(['ovl0', 'cam1'], ['ovl1']).filter('overlay', [], {
     enable: `'gte(t,6)'`,
     eof_action: 'pass',
   })
-  graph.transform(['ovl1', 'cam2'], [outputKey]).filter('overlay', [], {
+  graph.pipe(['ovl1', 'cam2'], [outputKey]).filter('overlay', [], {
     enable: `'gte(t,10)'`,
     eof_action: 'pass',
   })
@@ -125,7 +125,7 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
 
   for (const [i, vidKey] of vidKeys.entries()) {
     graph
-      .transform([vidKey], [`tile${i}`])
+      .pipe([vidKey], [`tile${i}`])
       .filter('setpts', ['PTS-STARTPTS'])
       .filter('format', ['yuv420p'])
       .filter('scale', [tileWidth, tileHeight], {
@@ -152,7 +152,7 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
     return xs.map((x) => `${x}_${y}`)
   })
   if (numTilesOnTopGrid > 1) {
-    graph.transform(gridTilesKeys, ['grid']).filter('xstack', [], {
+    graph.pipe(gridTilesKeys, ['grid']).filter('xstack', [], {
       inputs: numTilesOnTopGrid,
       fill: 'black',
       layout: gridTilesLayout,
@@ -164,19 +164,19 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
       (i) => `tile${numTilesOnTopGrid + i}`
     )
     graph
-      .transform(botRowTilesKeys, ['botrow'])
+      .pipe(botRowTilesKeys, ['botrow'])
       .filterIf(numTilesOnBottomRow > 1, 'hstack', [], {
         inputs: numTilesOnBottomRow,
       })
       .filter('pad', [1920, 'ih', -1, -1])
 
     graph
-      .transform(['grid', 'botrow'], [outputKey])
+      .pipe(['grid', 'botrow'], [outputKey])
       .filter('vstack')
       .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', 1080, -1, -1])
   } else {
     const grid = numTilesOnTopGrid > 1 ? 'grid' : 'tile0'
-    graph.transform([grid], [outputKey]).filter('pad', ['iw', 1080, -1, -1])
+    graph.pipe([grid], [outputKey]).filter('pad', ['iw', 1080, -1, -1])
   }
 }
 
@@ -195,7 +195,7 @@ export async function renderPresentation(
   const othersHeight = 1080 / 4
 
   graph
-    .transform([mainKey], ['main'])
+    .pipe([mainKey], ['main'])
     .filter('setpts', ['PTS-STARTPTS'])
     .filter('format', ['yuv420p'])
     .filter('scale', [mainWidth, mainHeight], {
@@ -205,7 +205,7 @@ export async function renderPresentation(
 
   for (const [i, other] of othersKeys.entries()) {
     graph
-      .transform([other], [`tile${i}`])
+      .pipe([other], [`tile${i}`])
       .filter('setpts', ['PTS-STARTPTS'])
       .filter('format', ['yuv420p'])
       .filter('scale', [othersWidth, othersHeight], {
@@ -216,8 +216,8 @@ export async function renderPresentation(
 
   const tileKeys = _.range(nOthers).map((i) => `tile${i}`)
   graph
-    .transform(tileKeys, ['rightpanel'])
+    .pipe(tileKeys, ['rightpanel'])
     .filter('vstack', [], { inputs: nOthers })
     .filterIf(nOthers < 4, 'pad', ['iw', 1080, -1, -1])
-  graph.transform(['main', 'rightpanel'], [outputKey]).filter('hstack')
+  graph.pipe(['main', 'rightpanel'], [outputKey]).filter('hstack')
 }

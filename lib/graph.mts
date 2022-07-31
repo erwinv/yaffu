@@ -104,7 +104,7 @@ export class Filter {
   }
 }
 
-export class FilterTransform {
+export class Pipe {
   public filters: Filter[] = []
   constructor(public inputs: string[], public outputs: string[]) {
     for (const [i, output] of outputs.entries()) {
@@ -148,7 +148,7 @@ export class FilterTransform {
 
 export class FilterGraph {
   public streams: Map<string, Stream> = new Map() // TODO FIXME string keys only?
-  public transforms: FilterTransform[] = []
+  public transforms: Pipe[] = []
   public outputs: Map<string, Stream[]> = new Map()
 
   constructor(public inputPaths: string[]) {
@@ -182,11 +182,7 @@ export class FilterGraph {
     return streams
   }
 
-  transform(
-    inputKeys: string[],
-    outputKeys: string[],
-    kind?: 'audio' | 'video'
-  ) {
+  pipe(inputKeys: string[], outputKeys: string[], kind?: 'audio' | 'video') {
     for (const [i, inputKey] of inputKeys.entries()) {
       inputKeys[i] = streamKey(inputKey)
       const stream = this.streams.get(inputKeys[i])
@@ -195,7 +191,7 @@ export class FilterGraph {
       this.streams.delete(inputKeys[i])
     }
 
-    const transform = new FilterTransform(inputKeys, outputKeys)
+    const transform = new Pipe(inputKeys, outputKeys)
     this.transforms.push(transform)
     for (const outputKey of transform.outputs) {
       const stream =

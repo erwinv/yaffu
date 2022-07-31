@@ -1,5 +1,6 @@
-import { isArray, trim } from 'lodash-es'
+import { isArray } from 'lodash-es'
 import { extname } from 'path'
+import { streamKey } from './util.mjs'
 
 export class BaseStream {
   constructor(public key: string) {}
@@ -107,7 +108,7 @@ export class FilterTransform {
   public filters: Filter[] = []
   constructor(public inputs: string[], public outputs: string[]) {
     for (const [i, output] of outputs.entries()) {
-      this.outputs[i] = '[' + trim(output, '[]') + ']'
+      this.outputs[i] = streamKey(output)
     }
   }
 
@@ -187,7 +188,7 @@ export class FilterGraph {
     kind?: 'audio' | 'video'
   ) {
     for (const [i, inputKey] of inputKeys.entries()) {
-      inputKeys[i] = '[' + trim(inputKey, '[]') + ']'
+      inputKeys[i] = streamKey(inputKey)
       const stream = this.streams.get(inputKeys[i])
       if (!stream) throw new Error(`Not a leaf stream: ${inputKeys[i]}`)
       kind = stream instanceof AudioStream ? 'audio' : 'video'
@@ -212,7 +213,7 @@ export class FilterGraph {
     const outputExt = extname(outputPath) // TODO FIXME ffprobe?
 
     for (const [i, outputKey] of outputKeys.entries()) {
-      outputKeys[i] = '[' + trim(outputKey, '[]') + ']'
+      outputKeys[i] = streamKey(outputKey)
       const outputStream = this.streams.get(outputKeys[i])
       if (!outputStream) throw new Error(`Not a leaf stream: ${outputKeys[i]}`)
 

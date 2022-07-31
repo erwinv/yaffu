@@ -1,4 +1,4 @@
-import { noop } from 'lodash-es'
+import { noop, trim } from 'lodash-es'
 import { unlink } from 'fs/promises'
 
 export function asyncNoThrow<Args extends readonly unknown[], R>(
@@ -8,3 +8,7 @@ export function asyncNoThrow<Args extends readonly unknown[], R>(
 }
 
 export const unlinkNoThrow = asyncNoThrow(unlink)
+
+export function streamKey(s: string) {
+  return '[' + trim(s, '[]') + ']'
+}

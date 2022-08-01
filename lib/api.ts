@@ -1,17 +1,27 @@
 import _ from 'lodash-es'
-import { FilterGraph } from './graph.mjs'
+import { FilterGraph } from './graph.js'
 
-export async function mixAudio(
+export function genericCombine(
+  inputs: string[] | [string, string[]][],
+  outputPath: string
+) {
+  const graph = new FilterGraph(inputs)
+  compositeGrid(graph, ['vout'])
+  mixAudio(graph, ['aout'])
+  return graph.map(['vout', 'aout'], outputPath)
+}
+
+export function mixAudio(
   graph: FilterGraph,
-  outputKeys: string[],
+  outputIds: string[],
   delays: number[] = []
 ) {
-  const audioKeys = graph.getLeafStreams('audio')
+  const streamIds = [...graph.audioStreams]
 
-  for (const [i, audioKey] of audioKeys.entries()) {
+  for (const [i, streamId] of streamIds.entries()) {
     const delay = delays[i] ?? 0
     graph
-      .pipe([audioKey], [`rec${i}`])
+      .pipe([streamId], [`rec${i}`])
       .filter('aresample', [48000], { async: 1 })
       .filter('pan', [
         ['stereo', 'FL<FL+0.5*FC+0.6*BL+0.6*SL', 'FR<FR+0.5*FC+0.6*BR+0.6*SR'],
@@ -20,24 +30,17 @@ export async function mixAudio(
       .filterIf(delay > 0, 'adelay', [delay], { all: 1 })
   }
 
-  const recKeys = _.range(audioKeys.length).map((i) => `rec${i}`)
+  const recIds = _.range(streamIds.length).map((i) => `rec${i}`)
   graph
-    .pipe(recKeys, outputKeys)
-    .filter('amix', [], { inputs: recKeys.length, normalize: 0 })
+    .pipe(recIds, outputIds)
+    .filter('amix', [], { inputs: recIds.length, normalize: 0 })
     .filter('dynaudnorm')
-    .filterIf(
-      outputKeys.length > 1,
-      'asplit',
-      outputKeys.length > 2 ? [outputKeys.length] : []
-    )
+    .filterIf(outputIds.length > 1, 'asplit', [outputIds.length])
 }
 
-export async function renderCamWithThumbnail(
-  graph: FilterGraph,
-  outputKey: string
-) {
+export function renderCamWithThumbnail(graph: FilterGraph, outputId: string) {
   // TODO generalize n=0..N
-  const [v0, v1, v2] = graph.getLeafStreams('video')
+  const [v0, v1, v2] = graph.videoStreams
   graph
     .pipe([v0], ['cam0'])
     .filter('trim', [], {
@@ -102,16 +105,17 @@ export async function renderCamWithThumbnail(
     enable: `'gte(t,6)'`,
     eof_action: 'pass',
   })
-  graph.pipe(['ovl1', 'cam2'], [outputKey]).filter('overlay', [], {
+  graph.pipe(['ovl1', 'cam2'], [outputId]).filter('overlay', [], {
     enable: `'gte(t,10)'`,
     eof_action: 'pass',
   })
 }
 
-export async function renderGrid(graph: FilterGraph, outputKey: string) {
-  const vidKeys = graph.getLeafStreams('video')
-  const n = vidKeys.length
-  if (n > 16) throw new Error()
+export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
+  const vidIds = [...graph.videoStreams]
+  const n = vidIds.length
+  if (n < 1 || n > 16)
+    throw new Error(`Invalid # of video streams (< 1 OR > 16): ${n}`)
 
   const numRows = Math.round(Math.sqrt(n))
   const numCols = Math.ceil(n / numRows)
@@ -120,12 +124,14 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
   const numTilesOnTopGrid = numFullRows * numCols
   const numTilesOnBottomRow = n % numCols
 
-  const tileWidth = 1920 / numCols
-  const tileHeight = 1080 / numCols
+  const width = 1920
+  const height = 1080
+  const tileWidth = width / numCols
+  const tileHeight = height / numCols
 
-  for (const [i, vidKey] of vidKeys.entries()) {
+  for (const [i, vidId] of vidIds.entries()) {
     graph
-      .pipe([vidKey], [`tile${i}`])
+      .pipe([vidId], [`tile${i}`])
       .filter('setpts', ['PTS-STARTPTS'])
       .filter('format', ['yuv420p'])
       .filter('scale', [tileWidth, tileHeight], {
@@ -134,7 +140,7 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
       .filter('crop', [tileWidth, tileHeight])
   }
 
-  const gridTilesKeys = _.range(numTilesOnTopGrid).map((i) => `tile${i}`)
+  const gridTilesIds = _.range(numTilesOnTopGrid).map((i) => `tile${i}`)
   const gridTilesLayout = _.range(numFullRows).flatMap((i) => {
     const y =
       i === 0
@@ -152,41 +158,47 @@ export async function renderGrid(graph: FilterGraph, outputKey: string) {
     return xs.map((x) => `${x}_${y}`)
   })
   if (numTilesOnTopGrid > 1) {
-    graph.pipe(gridTilesKeys, ['grid']).filter('xstack', [], {
+    graph.pipe(gridTilesIds, ['grid']).filter('xstack', [], {
       inputs: numTilesOnTopGrid,
-      fill: 'black',
       layout: gridTilesLayout,
+      fill: 'black',
+      shortest: 1,
     })
   }
 
   if (numTilesOnBottomRow > 0) {
-    const botRowTilesKeys = _.range(numTilesOnBottomRow).map(
+    const botRowTilesIds = _.range(numTilesOnBottomRow).map(
       (i) => `tile${numTilesOnTopGrid + i}`
     )
     graph
-      .pipe(botRowTilesKeys, ['botrow'])
+      .pipe(botRowTilesIds, ['botrow'])
       .filterIf(numTilesOnBottomRow > 1, 'hstack', [], {
         inputs: numTilesOnBottomRow,
+        shortest: 1,
       })
-      .filter('pad', [1920, 'ih', -1, -1])
+      .filter('pad', [width, 'ih', -1, -1])
 
     graph
-      .pipe(['grid', 'botrow'], [outputKey])
-      .filter('vstack')
-      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', 1080, -1, -1])
+      .pipe(['grid', 'botrow'], outputIds)
+      .filter('vstack', [], { shortest: 1 })
+      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', height, -1, -1])
+      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
   } else {
     const grid = numTilesOnTopGrid > 1 ? 'grid' : 'tile0'
-    graph.pipe([grid], [outputKey]).filter('pad', ['iw', 1080, -1, -1])
+    graph
+      .pipe([grid], outputIds)
+      .filter('pad', ['iw', height, -1, -1])
+      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
   }
 }
 
-export async function renderPresentation(
+export function compositePresentation(
   graph: FilterGraph,
-  mainKey: string,
-  othersKeys: string[],
-  outputKey: string
+  mainId: string,
+  othersIds: string[],
+  outputId: string
 ) {
-  const nOthers = othersKeys.length
+  const nOthers = othersIds.length
   if (nOthers === 0 || nOthers > 4) throw new Error()
 
   const mainWidth = (1920 * 3) / 4
@@ -195,7 +207,7 @@ export async function renderPresentation(
   const othersHeight = 1080 / 4
 
   graph
-    .pipe([mainKey], ['main'])
+    .pipe([mainId], ['main'])
     .filter('setpts', ['PTS-STARTPTS'])
     .filter('format', ['yuv420p'])
     .filter('scale', [mainWidth, mainHeight], {
@@ -203,7 +215,7 @@ export async function renderPresentation(
     })
     .filter('pad', [mainWidth, mainHeight, -1, -1])
 
-  for (const [i, other] of othersKeys.entries()) {
+  for (const [i, other] of othersIds.entries()) {
     graph
       .pipe([other], [`tile${i}`])
       .filter('setpts', ['PTS-STARTPTS'])
@@ -214,10 +226,10 @@ export async function renderPresentation(
       .filter('crop', [othersWidth, othersHeight])
   }
 
-  const tileKeys = _.range(nOthers).map((i) => `tile${i}`)
+  const tileIds = _.range(nOthers).map((i) => `tile${i}`)
   graph
-    .pipe(tileKeys, ['rightpanel'])
+    .pipe(tileIds, ['rightpanel'])
     .filter('vstack', [], { inputs: nOthers })
     .filterIf(nOthers < 4, 'pad', ['iw', 1080, -1, -1])
-  graph.pipe(['main', 'rightpanel'], [outputKey]).filter('hstack')
+  graph.pipe(['main', 'rightpanel'], [outputId]).filter('hstack')
 }

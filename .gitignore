@@ -1,2 +1,7 @@
 /node_modules/
 /build/
+
+*.aac
+*.mp4
+*.opus
+*.webm

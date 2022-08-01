@@ -1,9 +1,12 @@
+import { Console } from 'console'
 import { spawn } from 'child_process'
 import { writeFile } from 'fs/promises'
 import { basename, dirname, extname, join } from 'path'
 import { Readable } from 'stream'
-import { unlinkNoThrow } from './util.mjs'
-import { FilterGraph } from './graph.mjs'
+import { unlinkNoThrow } from './util.js'
+import { FilterGraph } from './graph.js'
+
+const console = new Console(process.stderr)
 
 export class FFmpegError extends Error {
   constructor(public exitCode: number) {
@@ -79,16 +82,26 @@ export async function concatDemux(clipPaths: string[], outputPath: string) {
   }
 }
 
-export async function encode(graph: FilterGraph, verbose = false) {
+export async function mux(graph: FilterGraph, verbose = true) {
   if (graph.outputs.size === 0) throw new Error('No defined output/s')
 
+  const inputs = graph.inputs
   const outputs = [...graph.outputs.entries()]
+
+  if (verbose) {
+    console.dir(inputs.map(([inputPath]) => inputPath))
+    console.dir([...graph.outputs.keys()])
+    console.dir(graph.pipes.map((p) => p.serialize()))
+  }
 
   const ffmpeg = spawn(
     'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v warning',
-      ...graph.inputPaths.map((inputPath) => `-i "${inputPath}"`),
+      ...inputs.flatMap(([inputPath, inputOpts]) => [
+        ...inputOpts,
+        `-i "${inputPath}"`,
+      ]),
       '-filter_complex_script pipe:',
       ...outputs.flatMap(([outputPath, streams]) => [
         ...streams.map((stream) => stream.serialize()),

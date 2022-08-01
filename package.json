@@ -6,11 +6,11 @@
   "exports": {
     ".": {
       "types": "./build/types/index.d.ts",
-      "import": "./build/esm/index.mjs",
-      "require": "./build/commonjs/index.cjs"
+      "import": "./build/esm/index.js",
+      "require": "./build/commonjs/index.js"
     }
   },
-  "main": "./build/commonjs/index.cjs",
+  "main": "./build/commonjs/index.js",
   "types": "./build/types/index.d.ts",
   "directories": {
     "lib": "lib"
@@ -18,12 +18,13 @@
   "scripts": {
     "format": "prettier --write .",
     "prelint": "npm run format",
-    "lint": "eslint . --ext .ts,.mts",
+    "lint": "eslint . --ext .ts",
     "prebuild": "npm run lint",
     "build": "tsc",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "pretest": "npm run build",
-    "test": "jest"
+    "test": "jest",
+    "build:watch": "tsc -w"
   },
   "repository": {
     "type": "git",

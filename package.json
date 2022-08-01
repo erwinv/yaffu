@@ -1,8 +1,9 @@
 {
   "name": "yaffu",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
+  "files": ["./build/**/*"],
   "exports": {
     ".": {
       "types": "./build/types/index.d.ts",

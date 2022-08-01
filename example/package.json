@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "node index.mjs"
+  },
+  "dependencies": {
+    "yaffu": "^1.0.1"
+  }
+}

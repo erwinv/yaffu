@@ -1,5 +1,24 @@
 # Yet Another FFmpeg Util
 
+## Dependencies
+
+- FFmpeg
+
+## Install
+
+```sh
+npm install yaffu@latest
+```
+
+## Example
+
+```
+git clone https://github.com/erwinv/yaffu
+cd yaffu/example
+npm install
+npm run test
+```
+
 ## Usage
 
 ### High-level API
@@ -15,13 +34,7 @@ const inputPaths = [
 await ffmux(genericCombine(inputPaths, 'combined.mp4'))
 ```
 
-See `script/example.ts` for a demo of combining videos into a grid of 1-16 tiles. Run the example through:
-
-```
-npm install
-npm run build
-node ./build/esm/script/example.js
-```
+See `example/index.mjs` for a demo of combining videos into a grid of 1-16 tiles.
 
 ### Low-level API
 

@@ -4,6 +4,6 @@
     "test": "node index.mjs"
   },
   "dependencies": {
-    "yaffu": "^1.0.1"
+    "yaffu": "^1.0.2"
   }
 }

@@ -1,6 +1,7 @@
 import { get } from 'https'
 import { basename, join as joinPath } from 'path'
-import { createWriteStream, pipeline } from 'stream'
+import { createWriteStream } from 'fs'
+import { pipeline } from 'stream'
 
 export async function downloadFile(url, dir) {
   const filename = basename(url.pathname)

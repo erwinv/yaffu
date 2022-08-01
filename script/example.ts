@@ -6,11 +6,11 @@ import { downloadFile } from '../lib/util.js'
 
 const file = 'BigBuckBunny-720p.mp4'
 const fileHost = new URL('https://erwinvcc.ap-south-1.linodeobjects.com')
+const fileDownloadLink = new URL(file, fileHost)
 
 try {
   await access(file, constants.R_OK)
 } catch {
-  const fileDownloadLink = new URL(file, fileHost)
   console.error('Downloading', fileDownloadLink.href)
   await downloadFile(fileDownloadLink, './')
 }

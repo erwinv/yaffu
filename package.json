@@ -24,7 +24,8 @@
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "pretest": "npm run build",
     "test": "jest",
-    "build:watch": "tsc -w"
+    "build:watch": "tsc -w",
+    "prepublish": "npm run build && npm run build:cjs"
   },
   "repository": {
     "type": "git",

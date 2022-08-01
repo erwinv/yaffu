@@ -23,8 +23,8 @@ async function main() {
   const inputOpts = range(16).map((i) => [`-ss ${i * 10}`, '-t 10'])
   const outputs = range(1, 17).map(i => `combined_${i}.mp4`)
 
-  for (const i of range(1, 17)) {
-    const inputs = take(inputOpts, i)
+  for (const i of range(16)) {
+    const inputs = take(inputOpts, i + 1)
       .map(opts => [file, opts])
       .reverse()
     await ffmux(genericCombine(inputs, outputs[i]))

@@ -1,6 +1,6 @@
 {
   "name": "yaffu",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
   "exports": {
@@ -32,7 +32,9 @@
     "url": "git+https://github.com/erwinv/yaffu.git"
   },
   "keywords": [
-    "ffmpeg"
+    "ffmpeg",
+    "video",
+    "audio"
   ],
   "author": "Erwin Villejo",
   "license": "ISC",

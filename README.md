@@ -22,6 +22,7 @@ npm run test
 ```
 
 Using `genericCombine` is as simple as:
+
 ```ts
 import { ffmux, genericCombine } from 'yaffu'
 

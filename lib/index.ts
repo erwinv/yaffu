@@ -1,4 +1,9 @@
-export { mixAudio, compositeGrid, genericCombine } from './api.js'
+export {
+  genericCombine,
+  mixAudio,
+  compositeGrid,
+  compositePresentation,
+} from './api.js'
 export { FilterGraph } from './graph.js'
 export {
   probe as ffprobe,

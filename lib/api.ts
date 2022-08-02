@@ -16,12 +16,14 @@ export function mixAudio(
   outputIds: string[],
   delays: number[] = []
 ) {
-  const streamIds = [...graph.audioStreams]
+  const audioIds = [...graph.audioStreams]
+  const normalizedIds = audioIds.map((id) => `${id}_norm`)
 
-  for (const [i, streamId] of streamIds.entries()) {
+  for (const [i, audId] of audioIds.entries()) {
+    const normId = normalizedIds[i]
     const delay = delays[i] ?? 0
     graph
-      .pipe([streamId], [`rec${i}`])
+      .pipe([audId], [normId])
       .filter('aresample', [48000], { async: 1 })
       .filter('pan', [
         ['stereo', 'FL<FL+0.5*FC+0.6*BL+0.6*SL', 'FR<FR+0.5*FC+0.6*BR+0.6*SR'],
@@ -30,12 +32,153 @@ export function mixAudio(
       .filterIf(delay > 0, 'adelay', [delay], { all: 1 })
   }
 
-  const recIds = range(streamIds.length).map((i) => `rec${i}`)
   graph
-    .pipe(recIds, outputIds)
-    .filter('amix', [], { inputs: recIds.length, normalize: 0 })
+    .pipe(normalizedIds, outputIds)
+    .filter('amix', [], { inputs: normalizedIds.length, normalize: 0 })
     .filter('dynaudnorm')
     .filterIf(outputIds.length > 1, 'asplit', [outputIds.length])
+}
+
+export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
+  const videoIds = [...graph.videoStreams]
+  const n = videoIds.length
+  if (n < 1 || n > 16)
+    throw new Error(`Invalid # of video streams (< 1 OR > 16): ${n}`)
+
+  const numRows = Math.round(Math.sqrt(n))
+  const numCols = Math.ceil(n / numRows)
+
+  const numFullRows = Math.floor(n / numCols)
+  const numTilesOnTopGrid = numFullRows * numCols
+  const numTilesOnBottomRow = n % numCols
+
+  const width = 1920
+  const height = 1080
+  const tileWidth = width / numCols
+  const tileHeight = height / numCols
+
+  for (const [i, vidId] of videoIds.entries()) {
+    graph
+      .pipe([vidId], [`tile${i}`])
+      .filter('setpts', ['PTS-STARTPTS'])
+      .filter('format', ['yuv420p'])
+      .filter('scale', [tileWidth, tileHeight], {
+        force_original_aspect_ratio: 'increase',
+      })
+      .filter('crop', [tileWidth, tileHeight])
+  }
+
+  const gridTilesIds = range(numTilesOnTopGrid).map((i) => `tile${i}`)
+  const gridTilesLayout = range(numFullRows).flatMap((i) => {
+    const y =
+      i === 0
+        ? '0'
+        : range(i)
+            .map(() => 'h0')
+            .join('+')
+    const xs = range(numCols).map((j) => {
+      return j === 0
+        ? '0'
+        : range(j)
+            .map(() => 'w0')
+            .join('+')
+    })
+    return xs.map((x) => `${x}_${y}`)
+  })
+  if (numTilesOnTopGrid > 1) {
+    graph.pipe(gridTilesIds, ['grid']).filter('xstack', [], {
+      inputs: numTilesOnTopGrid,
+      layout: gridTilesLayout,
+      fill: 'black',
+      shortest: 1,
+    })
+  }
+
+  if (numTilesOnBottomRow > 0) {
+    const botRowTilesIds = range(numTilesOnBottomRow).map(
+      (i) => `tile${numTilesOnTopGrid + i}`
+    )
+    graph
+      .pipe(botRowTilesIds, ['botrow'])
+      .filterIf(numTilesOnBottomRow > 1, 'hstack', [], {
+        inputs: numTilesOnBottomRow,
+        shortest: 1,
+      })
+      .filter('pad', [width, 'ih', -1, -1])
+
+    graph
+      .pipe(['grid', 'botrow'], outputIds)
+      .filter('vstack', [], { shortest: 1 })
+      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', height, -1, -1])
+      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
+  } else {
+    const grid = numTilesOnTopGrid > 1 ? 'grid' : 'tile0'
+    graph
+      .pipe([grid], outputIds)
+      .filter('pad', ['iw', height, -1, -1])
+      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
+  }
+}
+
+export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
+  const [mainId, ...othersIds] = [...graph.videoStreams]
+
+  const nOthers = othersIds.length
+  if (nOthers > 4)
+    throw new Error(`Invalid # of video srteams (> 4): ${nOthers}`)
+
+  if (nOthers === 0) {
+    graph
+      .pipe([mainId], outputIds)
+      .filter('setpts', ['PTS-STARTPTS'])
+      .filter('format', ['yuv420p'])
+      .filter('scale', [1920, 1080], {
+        force_original_aspect_ratio: 'decrease',
+      })
+      .filter('pad', [1920, 1080, -1, -1])
+      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
+    return
+  }
+
+  const mainTileWidth = (1920 * 3) / 4
+  const mainTileHeight = 1080
+  const tileWidth = 1920 / 4
+  const tileHeight = 1080 / 4
+
+  const mainTileId = 'main'
+  const tileIds = othersIds.map((id) => `${id}_tile`)
+  const rightPanelId = 'rightpanel'
+
+  graph
+    .pipe([mainId], [mainTileId])
+    .filter('setpts', ['PTS-STARTPTS'])
+    .filter('format', ['yuv420p'])
+    .filter('scale', [mainTileWidth, mainTileHeight], {
+      force_original_aspect_ratio: 'decrease',
+    })
+    .filter('pad', [mainTileWidth, mainTileHeight, -1, -1])
+
+  for (const [i, otherId] of othersIds.entries()) {
+    const tileId = tileIds[i]
+    graph
+      .pipe([otherId], [tileId])
+      .filter('setpts', ['PTS-STARTPTS'])
+      .filter('format', ['yuv420p'])
+      .filter('scale', [tileWidth, tileHeight], {
+        force_original_aspect_ratio: 'increase',
+      })
+      .filter('crop', [tileWidth, tileHeight])
+  }
+
+  graph
+    .pipe(tileIds, [rightPanelId])
+    .filterIf(nOthers > 1, 'vstack', [], { inputs: nOthers })
+    .filterIf(nOthers < 4, 'pad', ['iw', 1080, -1, -1])
+
+  graph
+    .pipe([mainTileId, rightPanelId], outputIds)
+    .filter('hstack')
+    .filterIf(outputIds.length > 1, 'split', [outputIds.length])
 }
 
 export function renderCamWithThumbnail(graph: FilterGraph, outputId: string) {
@@ -109,127 +252,4 @@ export function renderCamWithThumbnail(graph: FilterGraph, outputId: string) {
     enable: `'gte(t,10)'`,
     eof_action: 'pass',
   })
-}
-
-export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
-  const vidIds = [...graph.videoStreams]
-  const n = vidIds.length
-  if (n < 1 || n > 16)
-    throw new Error(`Invalid # of video streams (< 1 OR > 16): ${n}`)
-
-  const numRows = Math.round(Math.sqrt(n))
-  const numCols = Math.ceil(n / numRows)
-
-  const numFullRows = Math.floor(n / numCols)
-  const numTilesOnTopGrid = numFullRows * numCols
-  const numTilesOnBottomRow = n % numCols
-
-  const width = 1920
-  const height = 1080
-  const tileWidth = width / numCols
-  const tileHeight = height / numCols
-
-  for (const [i, vidId] of vidIds.entries()) {
-    graph
-      .pipe([vidId], [`tile${i}`])
-      .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
-      .filter('scale', [tileWidth, tileHeight], {
-        force_original_aspect_ratio: 'increase',
-      })
-      .filter('crop', [tileWidth, tileHeight])
-  }
-
-  const gridTilesIds = range(numTilesOnTopGrid).map((i) => `tile${i}`)
-  const gridTilesLayout = range(numFullRows).flatMap((i) => {
-    const y =
-      i === 0
-        ? '0'
-        : range(i)
-            .map(() => 'h0')
-            .join('+')
-    const xs = range(numCols).map((j) => {
-      return j === 0
-        ? '0'
-        : range(j)
-            .map(() => 'w0')
-            .join('+')
-    })
-    return xs.map((x) => `${x}_${y}`)
-  })
-  if (numTilesOnTopGrid > 1) {
-    graph.pipe(gridTilesIds, ['grid']).filter('xstack', [], {
-      inputs: numTilesOnTopGrid,
-      layout: gridTilesLayout,
-      fill: 'black',
-      shortest: 1,
-    })
-  }
-
-  if (numTilesOnBottomRow > 0) {
-    const botRowTilesIds = range(numTilesOnBottomRow).map(
-      (i) => `tile${numTilesOnTopGrid + i}`
-    )
-    graph
-      .pipe(botRowTilesIds, ['botrow'])
-      .filterIf(numTilesOnBottomRow > 1, 'hstack', [], {
-        inputs: numTilesOnBottomRow,
-        shortest: 1,
-      })
-      .filter('pad', [width, 'ih', -1, -1])
-
-    graph
-      .pipe(['grid', 'botrow'], outputIds)
-      .filter('vstack', [], { shortest: 1 })
-      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', height, -1, -1])
-      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
-  } else {
-    const grid = numTilesOnTopGrid > 1 ? 'grid' : 'tile0'
-    graph
-      .pipe([grid], outputIds)
-      .filter('pad', ['iw', height, -1, -1])
-      .filterIf(outputIds.length > 1, 'split', [outputIds.length])
-  }
-}
-
-export function compositePresentation(
-  graph: FilterGraph,
-  mainId: string,
-  othersIds: string[],
-  outputId: string
-) {
-  const nOthers = othersIds.length
-  if (nOthers === 0 || nOthers > 4) throw new Error()
-
-  const mainWidth = (1920 * 3) / 4
-  const mainHeight = 1080
-  const othersWidth = 1920 / 4
-  const othersHeight = 1080 / 4
-
-  graph
-    .pipe([mainId], ['main'])
-    .filter('setpts', ['PTS-STARTPTS'])
-    .filter('format', ['yuv420p'])
-    .filter('scale', [mainWidth, mainHeight], {
-      force_original_aspect_ratio: 'decrease',
-    })
-    .filter('pad', [mainWidth, mainHeight, -1, -1])
-
-  for (const [i, other] of othersIds.entries()) {
-    graph
-      .pipe([other], [`tile${i}`])
-      .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
-      .filter('scale', [othersWidth, othersHeight], {
-        force_original_aspect_ratio: 'increase',
-      })
-      .filter('crop', [othersWidth, othersHeight])
-  }
-
-  const tileIds = range(nOthers).map((i) => `tile${i}`)
-  graph
-    .pipe(tileIds, ['rightpanel'])
-    .filter('vstack', [], { inputs: nOthers })
-    .filterIf(nOthers < 4, 'pad', ['iw', 1080, -1, -1])
-  graph.pipe(['main', 'rightpanel'], [outputId]).filter('hstack')
 }

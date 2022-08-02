@@ -5,6 +5,6 @@
   },
   "dependencies": {
     "lodash-es": "^4.17.21",
-    "yaffu": "^1.0.4"
+    "yaffu": "^1.0.5"
   }
 }

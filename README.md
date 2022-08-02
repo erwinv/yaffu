@@ -12,6 +12,8 @@ npm install yaffu@latest
 
 ## Example
 
+Run the `example/index.mjs` script which demos `genericCombine` (mixes all audio and stacks all video on a centered grid):
+
 ```
 git clone https://github.com/erwinv/yaffu
 cd yaffu/example
@@ -19,12 +21,7 @@ npm install
 npm run test
 ```
 
-## Usage
-
-### High-level API
-
-`genericCombine` mixes all audio and stacks all videos on a centered rectangular grid:
-
+Using `genericCombine` is as simple as:
 ```ts
 import { ffmux, genericCombine } from 'yaffu'
 
@@ -34,9 +31,21 @@ const inputPaths = [
 await ffmux(genericCombine(inputPaths, 'combined.mp4'))
 ```
 
-See `example/index.mjs` for a demo of combining videos into a grid of 1-16 tiles.
+## API
+
+### High-level API
+
+- `mixAudio` downmixes and mixes all input audio to stereo
+- `compositeGrid` stacks all video input on a grid layout (max 16 or 4x4 grid)
+- `compositePresentation` main tile (presentation) on the left, vertically stacked tiles on the right (max 4)
+- `genericCombine` is a convenient wrapper that does both `mixAudio` and `compositeGrid`
 
 ### Low-level API
+
+- `FilterGraph` filter graph builder class
+- `ffmux` executes the filter graph and muxes to the defined output
+- `ffconcatDemux` concatenates all input files using FFmpeg's concat demuxer
+- `ffprobe` probe media file's metadata
 
 ```ts
 import { FilterGraph, ffmux } from 'yaffu'
@@ -59,5 +68,3 @@ graph.map(['aout'], 'output.aac')
 // run the muxer
 await ffmux(graph)
 ```
-
-See how `FilterGraph` is used in the generic `mixAudio` and `compositeGrid` high-level APIs in `lib/api.ts`.

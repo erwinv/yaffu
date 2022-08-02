@@ -181,75 +181,81 @@ export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
     .filterIf(outputIds.length > 1, 'split', [outputIds.length])
 }
 
-export function renderCamWithThumbnail(graph: FilterGraph, outputId: string) {
-  // TODO generalize n=0..N
-  const [v0, v1, v2] = graph.videoStreams
-  graph
-    .pipe([v0], ['cam0'])
-    .filter('trim', [], {
-      start: 4,
-      end: 6,
-    })
-    .filter('setpts', ['PTS-STARTPTS'])
-    .filter('format', ['yuv420p'])
-    .filter('scale', [1280, 720], {
-      force_original_aspect_ratio: 'increase',
-    })
-    .filter('crop', [1280, 720])
-    .filter('tpad', [], { start_duration: 2 })
+interface ParticipantTrack {
+  participant: {
+    id: string
+    name: string
+  }
+  duration: number
+  clips: Array<{
+    videoId: string
+    trim?: {
+      start: number
+      end: number
+    }
+    delay?: number
+  }>
+}
 
-  graph
-    .pipe([v1], ['cam1'])
-    .filter('trim', [], {
-      start: 4,
-      end: 6,
-    })
-    .filter('setpts', ['PTS-STARTPTS'])
-    .filter('format', ['yuv420p'])
-    .filter('scale', [1280, 720], {
-      force_original_aspect_ratio: 'increase',
-    })
-    .filter('crop', [1280, 720])
-    .filter('tpad', [], { start_duration: 6 })
+export function renderParticipantTrack(
+  graph: FilterGraph,
+  outputId: string,
+  track: ParticipantTrack
+) {
+  const uid = track.participant.id
 
-  graph
-    .pipe([v2], ['cam2'])
-    .filter('trim', [], {
-      start: 4,
-      end: 6,
-    })
-    .filter('setpts', ['PTS-STARTPTS'])
-    .filter('format', ['yuv420p'])
-    .filter('scale', [1280, 720], { force_original_aspect_ratio: 'increase' })
-    .filter('crop', [1280, 720])
-    .filter('tpad', [], { start_duration: 10 })
+  // normalize, trim, and delay clips
+  const camIds = track.clips.map((_, i) => `u${uid}_cam${i}`)
+  for (const [i, clip] of track.clips.entries()) {
+    const vidId = clip.videoId
+    const camId = camIds[i]
+    const trimStart = clip.trim?.start ?? 0
+    const trimEnd = clip.trim?.end ?? Infinity
+    const delay = clip.delay ?? 0
+    graph
+      .pipe([vidId], [camId])
+      .filterIf(trimStart > 0, 'trim', [], {
+        start: trimStart / 1000,
+      })
+      .filterIf(trimEnd < Infinity, 'trim', [], {
+        end: trimEnd / 1000,
+      })
+      .filter('setpts', ['PTS-STARTPTS'])
+      .filter('format', ['yuv420p'])
+      .filter('scale', [1280, 720], {
+        force_original_aspect_ratio: 'increase',
+      })
+      .filter('crop', [1280, 720])
+      .filterIf(delay > 0, 'tpad', [], { start_duration: delay / 1000 })
+  }
 
+  // generate thumbnail
+  const thumbId = camIds.length > 0 ? `u${uid}_thumb` : outputId
   graph
-    .pipe([], ['thumb'])
+    .pipe([], [thumbId], 'video')
     .filter('color', [], {
-      size: `${1280 - 16}x${720 - 8}`,
+      size: `${1280 - 16}x${720 - 8}`, // for border
       color: '0x63666A',
-      duration: 14,
+      duration: track.duration / 1000,
     })
     .filter('drawtext', [], {
-      text: `'Big Buck Bunny'`,
+      text: track.participant.name,
       x: '(w-text_w)/2',
       y: '(h-text_h)/2',
       fontcolor: '0xF2E9EA',
       fontsize: 60,
     })
-    .filter('pad', [1280, 720, -1, -1, 'black'])
+    .filter('pad', [1280, 720, -1, -1, 'black']) // border
 
-  graph.pipe(['thumb', 'cam0'], ['ovl0']).filter('overlay', [], {
-    enable: `'gte(t,2)'`,
-    eof_action: 'pass',
-  })
-  graph.pipe(['ovl0', 'cam1'], ['ovl1']).filter('overlay', [], {
-    enable: `'gte(t,6)'`,
-    eof_action: 'pass',
-  })
-  graph.pipe(['ovl1', 'cam2'], [outputId]).filter('overlay', [], {
-    enable: `'gte(t,10)'`,
-    eof_action: 'pass',
-  })
+  // overlay clips to thumbnail
+  let prevOverlayId = thumbId
+  for (const [i, camId] of camIds.entries()) {
+    const nextOverlayId = i < camIds.length - 1 ? `${camId}_ovl` : outputId
+    const delay = track.clips[i].delay ?? 0
+    graph.pipe([prevOverlayId, camId], [nextOverlayId]).filter('overlay', [], {
+      enable: `'gte(t,${delay / 1000})'`,
+      eof_action: 'pass',
+    })
+    prevOverlayId = nextOverlayId
+  }
 }

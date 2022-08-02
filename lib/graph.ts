@@ -128,9 +128,11 @@ export class FilterGraph {
     return new Set([...this.audioStreams, ...this.videoStreams])
   }
 
-  pipe(streamIds: string[], outputStreamIds: string[]) {
-    let streamType: 'audio' | 'video' | '' = ''
-
+  pipe(
+    streamIds: string[],
+    outputStreamIds: string[],
+    streamType: 'audio' | 'video' | '' = ''
+  ) {
     for (const streamId of streamIds) {
       if (!this.streams.has(streamId))
         throw new Error(`Not a leaf stream: [${streamId}]`)

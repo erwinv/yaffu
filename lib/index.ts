@@ -3,11 +3,12 @@ export {
   mixAudio,
   compositeGrid,
   compositePresentation,
+  renderParticipantTrack,
 } from './api.js'
 export { FilterGraph } from './graph.js'
 export {
   probe as ffprobe,
-  concatDemux as ffconcatDemux,
   mux as ffmux,
+  concatDemux as ffconcatDemux,
 } from './ffmpeg.js'
 export { Codec, ENCODER, ENCODER_OPTS } from './codec.js'

@@ -3,7 +3,9 @@
   "version": "1.0.4",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
-  "files": ["./build/**/*"],
+  "files": [
+    "./build/**/*"
+  ],
   "exports": {
     ".": {
       "types": "./build/types/index.d.ts",
@@ -26,7 +28,7 @@
     "pretest": "npm run build",
     "test": "jest",
     "build:watch": "tsc -w",
-    "prepublish": "npm run build && npm run build:cjs"
+    "prepublishOnly": "npm run build && npm run build:cjs"
   },
   "repository": {
     "type": "git",
@@ -54,8 +56,5 @@
     "jest": "^28.1.3",
     "prettier": "^2.7.1",
     "typescript": "^4.7.4"
-  },
-  "dependencies": {
-    "lodash-es": "^4.17.21"
   }
 }

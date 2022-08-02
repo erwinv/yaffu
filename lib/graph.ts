@@ -1,5 +1,5 @@
-import { isArray, isString } from 'lodash-es'
 import { extname } from 'path'
+import { isArray } from './util.js'
 import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
 
 export class BaseStream {
@@ -105,8 +105,8 @@ export class FilterGraph {
 
   constructor(inputs: string[] | [string, string[]][]) {
     for (const [i, input] of inputs.entries()) {
-      const inputPath = isString(input) ? input : input[0]
-      const inputOpts = isString(input) ? [] : input[1]
+      const inputPath = isArray(input) ? input[0] : input
+      const inputOpts = isArray(input) ? input[1] : []
 
       this.inputs.push([inputPath, inputOpts])
 

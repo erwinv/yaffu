@@ -1,4 +1,4 @@
-import _ from 'lodash-es'
+import { range } from './util.js'
 import { FilterGraph } from './graph.js'
 
 export function genericCombine(
@@ -30,7 +30,7 @@ export function mixAudio(
       .filterIf(delay > 0, 'adelay', [delay], { all: 1 })
   }
 
-  const recIds = _.range(streamIds.length).map((i) => `rec${i}`)
+  const recIds = range(streamIds.length).map((i) => `rec${i}`)
   graph
     .pipe(recIds, outputIds)
     .filter('amix', [], { inputs: recIds.length, normalize: 0 })
@@ -140,18 +140,18 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
       .filter('crop', [tileWidth, tileHeight])
   }
 
-  const gridTilesIds = _.range(numTilesOnTopGrid).map((i) => `tile${i}`)
-  const gridTilesLayout = _.range(numFullRows).flatMap((i) => {
+  const gridTilesIds = range(numTilesOnTopGrid).map((i) => `tile${i}`)
+  const gridTilesLayout = range(numFullRows).flatMap((i) => {
     const y =
       i === 0
         ? '0'
-        : _.range(i)
+        : range(i)
             .map(() => 'h0')
             .join('+')
-    const xs = _.range(numCols).map((j) => {
+    const xs = range(numCols).map((j) => {
       return j === 0
         ? '0'
-        : _.range(j)
+        : range(j)
             .map(() => 'w0')
             .join('+')
     })
@@ -167,7 +167,7 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   }
 
   if (numTilesOnBottomRow > 0) {
-    const botRowTilesIds = _.range(numTilesOnBottomRow).map(
+    const botRowTilesIds = range(numTilesOnBottomRow).map(
       (i) => `tile${numTilesOnTopGrid + i}`
     )
     graph
@@ -226,7 +226,7 @@ export function compositePresentation(
       .filter('crop', [othersWidth, othersHeight])
   }
 
-  const tileIds = _.range(nOthers).map((i) => `tile${i}`)
+  const tileIds = range(nOthers).map((i) => `tile${i}`)
   graph
     .pipe(tileIds, ['rightpanel'])
     .filter('vstack', [], { inputs: nOthers })

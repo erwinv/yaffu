@@ -2,12 +2,13 @@ import { range, take } from 'lodash-es'
 import { constants } from 'fs'
 import { access } from 'fs/promises'
 import {
-  genericCombine,
   ffmux,
   ffconcatDemux,
   FilterGraph,
-  compositePresentation,
+  genericCombine,
   mixAudio,
+  compositePresentation,
+  renderParticipantTrack,
 } from 'yaffu'
 import { downloadFile } from './util.mjs'
 
@@ -64,9 +65,98 @@ async function presentationLayout() {
   await ffconcatDemux(outputs, 'presentation_layout.mp4')
 }
 
+async function participantTrack() {
+  {
+    // no clips, just thumbnail
+    const graph = new FilterGraph([])
+    renderParticipantTrack(graph, 'vout', {
+      participant: { id: '0', name: 'Big Buck Bunny' },
+      duration: 10000,
+      clips: [],
+    })
+    graph.map(['vout'], 'participant_thumb.mp4')
+    await ffmux(graph)
+  }
+
+  {
+    // clip spans whole duration
+    const graph = new FilterGraph([file])
+    renderParticipantTrack(graph, 'vout', {
+      participant: { id: '0', name: 'Big Buck Bunny' },
+      duration: 10000,
+      clips: [
+        {
+          videoId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
+        },
+      ],
+    })
+    console.dir(graph.streams)
+    graph.map(['vout'], 'participant_clip_1.mp4')
+    await ffmux(graph)
+  }
+
+  {
+    // clip smaller than track duration, show thumbnail
+    const graph = new FilterGraph([file])
+    renderParticipantTrack(graph, 'vout', {
+      participant: { id: '0', name: 'Big Buck Bunny' },
+      duration: 30000,
+      clips: [
+        {
+          videoId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
+          delay: 10000,
+        },
+      ],
+    })
+    console.dir(graph.streams)
+    graph.map(['vout'], 'participant_clip_1_thumb.mp4')
+    await ffmux(graph)
+  }
+
+  {
+    // thumbnail in the middle
+    const graph = new FilterGraph([file, file])
+    renderParticipantTrack(graph, 'vout', {
+      participant: { id: '0', name: 'Big Buck Bunny' },
+      duration: 30000,
+      clips: [
+        {
+          videoId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
+          delay: 0,
+        },
+        {
+          videoId: '1:v',
+          trim: {
+            start: 30000,
+            end: 40000,
+          },
+          delay: 20000,
+        },
+      ],
+    })
+    graph.map(['vout'], 'participant_clip_2_thumb.mp4')
+    await ffmux(graph)
+  }
+}
+
 async function main() {
   const [, , layout = 'grid'] = process.argv
   switch (layout) {
+    case 'participant':
+      await participantTrack()
+      break
     case 'presentation':
       await presentationLayout()
       break

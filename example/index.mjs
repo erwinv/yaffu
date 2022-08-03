@@ -28,13 +28,16 @@ async function maybeDownloadInputFile() {
 async function gridLayout() {
   await maybeDownloadInputFile()
 
-  const inputOpts = range(16).map((i) => [`-ss ${i * 10}`, '-t 10'])
-  const outputs = range(1, 17).map((i) => `grid_${i}.mp4`)
+  const N = 16
+  const duration = 2
 
-  for (const i of range(16)) {
-    const inputs = take(inputOpts, i + 1)
+  const startTimestamps = range(N).map((i) => i * N * duration)
+  const outputs = range(1, N + 1).map((i) => `grid_${i}.mp4`)
+
+  for (const [i, n] of range(1, N + 1).entries()) {
+    const inputs = take(startTimestamps, n)
+      .map(start => [`-ss ${start + i * duration}`, `-t ${duration}`])
       .map((opts) => [file, opts])
-      .reverse()
 
     await ffmux(genericCombine(inputs, outputs[i]))
   }
@@ -45,13 +48,16 @@ async function gridLayout() {
 async function presentationLayout() {
   await maybeDownloadInputFile()
 
-  const inputOpts = range(9).map((i) => [`-ss ${i * 10}`, '-t 10'])
-  const outputs = range(1, 6).map((i) => `presentation_${i}.mp4`)
+  const N = 5
+  const duration = 10
 
-  for (const i of range(5)) {
-    const inputs = take(inputOpts, i + 1)
+  const startTimestamps = range(N).map((i) => i * N * duration)
+  const outputs = range(1, N + 1).map((i) => `presentation_${i}.mp4`)
+
+  for (const [i, n] of range(1, N + 1).entries()) {
+    const inputs = take(startTimestamps, n)
+      .map((start) => [`-ss ${start + i * duration}`, `-t ${duration}`])
       .map((opt) => [file, opt])
-      .reverse()
 
     const graph = new FilterGraph(inputs)
 
@@ -94,7 +100,6 @@ async function participantTrack() {
         },
       ],
     })
-    console.dir(graph.streams)
     graph.map(['vout'], 'participant_clip_1.mp4')
     await ffmux(graph)
   }
@@ -116,7 +121,6 @@ async function participantTrack() {
         },
       ],
     })
-    console.dir(graph.streams)
     graph.map(['vout'], 'participant_clip_1_thumb.mp4')
     await ffmux(graph)
   }

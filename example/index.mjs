@@ -36,7 +36,7 @@ async function gridLayout() {
 
   for (const [i, n] of range(1, N + 1).entries()) {
     const inputs = take(startTimestamps, n)
-      .map(start => [`-ss ${start + i * duration}`, `-t ${duration}`])
+      .map((start) => [`-ss ${start + i * duration}`, `-t ${duration}`])
       .map((opts) => [file, opts])
 
     await ffmux(genericCombine(inputs, outputs[i]))

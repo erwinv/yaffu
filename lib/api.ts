@@ -1,4 +1,4 @@
-import { range } from './util.js'
+import { range, take } from './util.js'
 import { FilterGraph } from './graph.js'
 
 export function genericCombine(
@@ -6,9 +6,9 @@ export function genericCombine(
   outputPath: string
 ) {
   const graph = new FilterGraph(inputs)
-  compositeGrid(graph, ['vout'])
-  mixAudio(graph, ['aout'])
-  return graph.map(['vout', 'aout'], outputPath)
+  compositeGrid(graph, ['out:v'])
+  mixAudio(graph, ['out:a'])
+  return graph.map(['out:v', 'out:a'], outputPath)
 }
 
 export function mixAudio(
@@ -16,21 +16,23 @@ export function mixAudio(
   outputIds: string[],
   delays: number[] = []
 ) {
-  const audioIds = [...graph.audioStreams]
-  const normalizedIds = audioIds.map((id) => `${id}_norm`)
+  const normalizedIds = graph
+    .pipeEach(graph.audioStreams, (id) => `${id}:norm`)
+    .buildEach((pipe, i) => {
+      const delay = delays[i] ?? 0
 
-  for (const [i, audId] of audioIds.entries()) {
-    const normId = normalizedIds[i]
-    const delay = delays[i] ?? 0
-    graph
-      .pipe([audId], [normId])
-      .filter('aresample', [48000], { async: 1 })
-      .filter('pan', [
-        ['stereo', 'FL<FL+0.5*FC+0.6*BL+0.6*SL', 'FR<FR+0.5*FC+0.6*BR+0.6*SR'],
-      ])
-      .filter('asetpts', ['N/SR/TB'])
-      .filterIf(delay > 0, 'adelay', [delay], { all: 1 })
-  }
+      pipe
+        .filter('aresample', [48000], { async: 1 })
+        .filter('pan', [
+          [
+            'stereo',
+            'FL<FL+0.5*FC+0.6*BL+0.6*SL',
+            'FR<FR+0.5*FC+0.6*BR+0.6*SR',
+          ],
+        ])
+        .filter('asetpts', ['N/SR/TB'])
+        .filterIf(delay > 0, 'adelay', [delay], { all: 1 })
+    })
 
   graph
     .pipe(normalizedIds, outputIds)
@@ -40,8 +42,7 @@ export function mixAudio(
 }
 
 export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
-  const videoIds = [...graph.videoStreams]
-  const n = videoIds.length
+  const n = graph.videoStreams.size
   if (n < 1 || n > 16)
     throw new Error(`Invalid # of video streams (< 1 OR > 16): ${n}`)
 
@@ -57,18 +58,19 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   const tileWidth = width / numCols
   const tileHeight = height / numCols
 
-  for (const [i, vidId] of videoIds.entries()) {
-    graph
-      .pipe([vidId], [`tile${i}`])
-      .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
-      .filter('scale', [tileWidth, tileHeight], {
-        force_original_aspect_ratio: 'increase',
-      })
-      .filter('crop', [tileWidth, tileHeight])
-  }
+  const tileIds = graph
+    .pipeEach(graph.videoStreams, (id) => `${id}:tile`)
+    .buildEach((pipe) => {
+      pipe
+        .filter('setpts', ['PTS-STARTPTS'])
+        .filter('format', ['yuv420p'])
+        .filter('scale', [tileWidth, tileHeight], {
+          force_original_aspect_ratio: 'increase',
+        })
+        .filter('crop', [tileWidth, tileHeight])
+    })
 
-  const gridTilesIds = range(numTilesOnTopGrid).map((i) => `tile${i}`)
+  const gridTilesIds = take(tileIds, numTilesOnTopGrid)
   const gridTilesLayout = range(numFullRows).flatMap((i) => {
     const y =
       i === 0
@@ -96,7 +98,7 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
 
   if (numTilesOnBottomRow > 0) {
     const botRowTilesIds = range(numTilesOnBottomRow).map(
-      (i) => `tile${numTilesOnTopGrid + i}`
+      (i) => tileIds[numTilesOnTopGrid + i]
     )
     graph
       .pipe(botRowTilesIds, ['botrow'])
@@ -112,7 +114,7 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
       .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', height, -1, -1])
       .filterIf(outputIds.length > 1, 'split', [outputIds.length])
   } else {
-    const grid = numTilesOnTopGrid > 1 ? 'grid' : 'tile0'
+    const grid = numTilesOnTopGrid > 1 ? 'grid' : tileIds[0]
     graph
       .pipe([grid], outputIds)
       .filter('pad', ['iw', height, -1, -1])
@@ -121,7 +123,7 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
 }
 
 export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
-  const [mainId, ...othersIds] = [...graph.videoStreams]
+  const [mainId, ...othersIds] = graph.videoStreams
 
   const nOthers = othersIds.length
   if (nOthers > 4)
@@ -146,7 +148,6 @@ export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
   const tileHeight = 1080 / 4
 
   const mainTileId = 'main'
-  const tileIds = othersIds.map((id) => `${id}_tile`)
   const rightPanelId = 'rightpanel'
 
   graph
@@ -158,17 +159,17 @@ export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
     })
     .filter('pad', [mainTileWidth, mainTileHeight, -1, -1])
 
-  for (const [i, otherId] of othersIds.entries()) {
-    const tileId = tileIds[i]
-    graph
-      .pipe([otherId], [tileId])
-      .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
-      .filter('scale', [tileWidth, tileHeight], {
-        force_original_aspect_ratio: 'increase',
-      })
-      .filter('crop', [tileWidth, tileHeight])
-  }
+  const tileIds = graph
+    .pipeEach(othersIds, (id) => `${id}:tile`)
+    .buildEach((pipe) => {
+      pipe
+        .filter('setpts', ['PTS-STARTPTS'])
+        .filter('format', ['yuv420p'])
+        .filter('scale', [tileWidth, tileHeight], {
+          force_original_aspect_ratio: 'increase',
+        })
+        .filter('crop', [tileWidth, tileHeight])
+    })
 
   graph
     .pipe(tileIds, [rightPanelId])
@@ -203,41 +204,41 @@ export function renderParticipantTrack(
   track: ParticipantTrack
 ) {
   const uid = track.participant.id
+  const vidIds = track.clips.map((clip) => clip.videoId)
 
   // normalize, trim, and delay clips
-  const camIds = track.clips.map((_, i) => `u${uid}_cam${i}`)
-  for (const [i, clip] of track.clips.entries()) {
-    const vidId = clip.videoId
-    const camId = camIds[i]
-    const trimStart = clip.trim?.start ?? 0
-    const trimEnd = clip.trim?.end ?? Infinity
-    const delay = clip.delay ?? 0
-    graph
-      .pipe([vidId], [camId])
-      .filterIf(trimStart > 0, 'trim', [], {
-        start: trimStart / 1000,
-      })
-      .filterIf(trimEnd < Infinity, 'trim', [], {
-        end: trimEnd / 1000,
-      })
-      .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
-      .filter('scale', [1280, 720], {
-        force_original_aspect_ratio: 'increase',
-      })
-      .filter('crop', [1280, 720])
-      .filter('drawtext', [], {
-        text: track.participant.name,
-        x: 24,
-        y: 'h-text_h-12',
-        fontcolor: 'white',
-        fontsize: 60,
-      })
-      .filterIf(delay > 0, 'tpad', [], { start_duration: delay / 1000 })
-  }
+  const camIds = graph
+    .pipeEach(vidIds, (id) => `${uid}:${id}:cam`)
+    .buildEach((pipe, i) => {
+      const clip = track.clips[i]
+      const trimStart = clip.trim?.start ?? 0
+      const trimEnd = clip.trim?.end ?? Infinity
+      const delay = clip.delay ?? 0
+      pipe
+        .filterIf(trimStart > 0, 'trim', [], {
+          start: trimStart / 1000,
+        })
+        .filterIf(trimEnd < Infinity, 'trim', [], {
+          end: trimEnd / 1000,
+        })
+        .filter('setpts', ['PTS-STARTPTS'])
+        .filter('format', ['yuv420p'])
+        .filter('scale', [1280, 720], {
+          force_original_aspect_ratio: 'increase',
+        })
+        .filter('crop', [1280, 720])
+        .filter('drawtext', [], {
+          text: track.participant.name,
+          x: 24,
+          y: 'h-text_h-12',
+          fontcolor: 'white',
+          fontsize: 60,
+        })
+        .filterIf(delay > 0, 'tpad', [], { start_duration: delay / 1000 })
+    })
 
   // generate thumbnail
-  const thumbId = camIds.length > 0 ? `u${uid}_thumb` : outputId
+  const thumbId = camIds.length > 0 ? `${uid}:thumb` : outputId
   graph
     .pipe([], [thumbId], 'video')
     .filter('color', [], {
@@ -255,14 +256,13 @@ export function renderParticipantTrack(
     .filter('pad', [1280, 720, -1, -1, 'black']) // border
 
   // overlay clips to thumbnail
-  let prevOverlayId = thumbId
-  for (const [i, camId] of camIds.entries()) {
-    const nextOverlayId = i < camIds.length - 1 ? `${camId}_ovl` : outputId
-    const delay = track.clips[i].delay ?? 0
-    graph.pipe([prevOverlayId, camId], [nextOverlayId]).filter('overlay', [], {
-      enable: `'gte(t,${delay / 1000})'`,
-      eof_action: 'pass',
+  graph
+    .pipeFoldLeft(camIds, (id) => `${id}:ovl`, outputId, thumbId)
+    .build((pipe, i) => {
+      const delay = track.clips[i].delay ?? 0
+      pipe.filter('overlay', [], {
+        enable: `'gte(t,${delay / 1000})'`,
+        eof_action: 'pass',
+      })
     })
-    prevOverlayId = nextOverlayId
-  }
 }

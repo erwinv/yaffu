@@ -14,6 +14,17 @@ export function range(...args: Parameters<typeof _range>) {
   return [..._range(...args)]
 }
 
+export function* _take<T>(xs: Iterable<T>, n: number) {
+  for (const x of xs) {
+    if (n-- > 0) yield x
+    else break
+  }
+}
+
+export function take<T>(...args: Parameters<typeof _take<T>>) {
+  return [..._take(...args)]
+}
+
 export function isArray<T>(x: T | T[]): x is Array<T> {
   return x instanceof Array
 }

@@ -129,10 +129,12 @@ export class FilterGraph {
   }
 
   pipe(
-    streamIds: string[],
+    _streamIds: Iterable<string>,
     outputStreamIds: string[],
     streamType: 'audio' | 'video' | '' = ''
   ) {
+    const streamIds = [..._streamIds]
+
     for (const streamId of streamIds) {
       if (!this.streams.has(streamId))
         throw new Error(`Not a leaf stream: [${streamId}]`)
@@ -169,7 +171,50 @@ export class FilterGraph {
     return pipe
   }
 
-  map(streamIds: string[], outputPath: string) {
+  pipeEach(_streamIds: Iterable<string>, genOutputId: (id: string) => string) {
+    const streamIds = [..._streamIds]
+    const outputIds = streamIds.map(genOutputId)
+
+    return {
+      buildEach: (pipeBuilder: (pipe: Pipe, i: number) => void) => {
+        let i = 0
+        for (const streamId of streamIds) {
+          const pipe = this.pipe([streamId], [outputIds[i]])
+          pipeBuilder(pipe, i)
+          ++i
+        }
+
+        return outputIds
+      },
+    }
+  }
+
+  pipeFoldLeft(
+    _streamIds: Iterable<string>,
+    genIntermediateId: (id: string) => string,
+    finalId: string,
+    initId: string
+  ) {
+    const streamIds = [..._streamIds]
+
+    return {
+      build: (folder: (pipe: Pipe, i: number) => void) => {
+        let i = 0
+        let prevId = initId
+        for (const streamId of streamIds) {
+          const nextId =
+            i < streamIds.length - 1 ? genIntermediateId(streamId) : finalId
+          const pipe = this.pipe([prevId, streamId], [nextId])
+          folder(pipe, i)
+          prevId = nextId
+          ++i
+        }
+      },
+    }
+  }
+
+  map(_streamIds: Iterable<string>, outputPath: string) {
+    const streamIds = [..._streamIds]
     const outputStreams: Stream[] = []
     const outputExt = extname(outputPath)
 

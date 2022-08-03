@@ -226,6 +226,13 @@ export function renderParticipantTrack(
         force_original_aspect_ratio: 'increase',
       })
       .filter('crop', [1280, 720])
+      .filter('drawtext', [], {
+        text: track.participant.name,
+        x: 24,
+        y: 'h-text_h-12',
+        fontcolor: 'white',
+        fontsize: 60,
+      })
       .filterIf(delay > 0, 'tpad', [], { start_duration: delay / 1000 })
   }
 

@@ -1,5 +1,5 @@
 import { ContainerMetadata, probe } from './ffmpeg.js'
-import { isEqualSet, isString, take } from './util.js'
+import { isEqualSet, isString, takeRight } from './util.js'
 
 interface Clip {
   path: string
@@ -141,6 +141,7 @@ export default class Timeline {
 
     const speakers: Participant[] = []
     const presentations: Presentation[] = []
+
     for (const point of potentialCutPoints) {
       const nextSpeakers = [...speakers]
       const nextPresentations = [...presentations]
@@ -159,11 +160,11 @@ export default class Timeline {
       }
 
       const didVisibleSpeakersChange = !isEqualSet(
-        new Set(take(speakers, 4)),
-        new Set(take(nextSpeakers, 4))
+        new Set(takeRight(speakers, 4)),
+        new Set(takeRight(nextSpeakers, 4))
       )
       const didVisiblePresentationChange =
-        take(presentations, 1) !== take(nextPresentations, 1)
+        takeRight(presentations, 1) !== takeRight(nextPresentations, 1)
 
       if (didVisibleSpeakersChange || didVisiblePresentationChange) {
       }

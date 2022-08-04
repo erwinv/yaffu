@@ -25,6 +25,10 @@ export function take<T>(...args: Parameters<typeof _take<T>>) {
   return [..._take(...args)]
 }
 
+export function takeRight<T>(xs: Iterable<T>, n: number) {
+  return [...xs].slice(-n)
+}
+
 export function isArray<T>(x: T | T[]): x is Array<T> {
   return x instanceof Array
 }

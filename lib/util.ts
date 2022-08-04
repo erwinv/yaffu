@@ -33,6 +33,10 @@ export function isString(x: unknown): x is string {
   return typeof x === 'string'
 }
 
+export function isEqualSet<T>(xs: Set<T>, ys: Set<T>) {
+  return xs.size === ys.size && [...xs].every((x) => ys.has(x))
+}
+
 export function asyncNoThrow<Args extends readonly unknown[], R>(
   fn: (...args: Args) => Promise<R>
 ) {

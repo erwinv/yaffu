@@ -1,5 +1,5 @@
 import { ContainerMetadata, probe } from './ffmpeg.js'
-import { isString } from './util.js'
+import { isEqualSet, isString, take } from './util.js'
 
 interface Clip {
   path: string
@@ -30,11 +30,13 @@ export interface Track {
 }
 
 export interface Participant {
+  kind: 'participant'
   id: string
   name: string
 }
 
 export interface Presentation {
+  kind: 'presentation'
   id: string
   title: string
 }
@@ -76,5 +78,95 @@ export default class Timeline {
   }
   async addClip(owner: Participant | Presentation, clip: string | InputClip) {
     return this.addClips(owner, [clip])
+  }
+
+  findCuts() {
+    interface SpeakerCutPoint {
+      time: number
+      kind: 'openMic' | 'closeMic'
+      participant: Participant
+    }
+    interface PresentationCutPoint {
+      time: number
+      kind: 'startShare' | 'stopShare'
+      presentation: Presentation
+    }
+
+    const potentialCutPoints: Array<SpeakerCutPoint | PresentationCutPoint> = []
+    for (const [owner, clips] of this.clips) {
+      if (owner.kind === 'presentation') {
+        potentialCutPoints.push(
+          ...clips
+            .filter((c) => c.hasVideo)
+            .flatMap((c) => {
+              return [
+                {
+                  time: c.startTime,
+                  kind: 'startShare' as const,
+                  presentation: owner,
+                },
+                {
+                  time: c.endTime,
+                  kind: 'stopShare' as const,
+                  presentation: owner,
+                },
+              ]
+            })
+        )
+      } else if (owner.kind === 'participant') {
+        potentialCutPoints.push(
+          ...clips
+            .filter((c) => c.hasAudio)
+            .flatMap((c) => {
+              return [
+                {
+                  time: c.startTime,
+                  kind: 'openMic' as const,
+                  participant: owner,
+                },
+                {
+                  time: c.endTime,
+                  kind: 'closeMic' as const,
+                  participant: owner,
+                },
+              ]
+            })
+        )
+      }
+    }
+
+    potentialCutPoints.sort((a, b) => a.time - b.time)
+
+    const cuts = []
+
+    const speakers: Participant[] = []
+    const presentations: Presentation[] = []
+    for (const point of potentialCutPoints) {
+      const nextSpeakers = [...speakers]
+      const nextPresentations = [...presentations]
+      if (point.kind === 'startShare') {
+        nextPresentations.push(point.presentation)
+      } else if (point.kind === 'stopShare') {
+        const index = nextPresentations.findIndex(
+          (p) => p === point.presentation
+        )
+        nextPresentations.splice(index, 1)
+      } else if (point.kind === 'openMic') {
+        nextSpeakers.push(point.participant)
+      } else if (point.kind === 'closeMic') {
+        const index = nextSpeakers.findIndex((p) => p === point.participant)
+        nextSpeakers.splice(index, 1)
+      }
+
+      const didVisibleSpeakersChange = !isEqualSet(
+        new Set(take(speakers, 4)),
+        new Set(take(nextSpeakers, 4))
+      )
+      const didVisiblePresentationChange =
+        take(presentations, 1) !== take(nextPresentations, 1)
+
+      if (didVisibleSpeakersChange || didVisiblePresentationChange) {
+      }
+    }
   }
 }

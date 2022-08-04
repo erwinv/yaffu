@@ -89,7 +89,7 @@ export async function mux(graph: FilterGraph, verbose = true) {
   const outputs = [...graph.outputs.entries()]
 
   if (verbose) {
-    console.dir(inputs.map(([inputPath]) => inputPath))
+    console.dir(inputs.map((input) => input.path))
     console.dir([...graph.outputs.keys()])
     console.dir(graph.pipes.map((p) => p.serialize()))
   }
@@ -98,9 +98,9 @@ export async function mux(graph: FilterGraph, verbose = true) {
     'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v warning',
-      ...inputs.flatMap(([inputPath, inputOpts]) => [
-        ...inputOpts,
-        `-i "${inputPath}"`,
+      ...inputs.flatMap((input) => [
+        ...(input.opts ?? []),
+        `-i "${input.path}"`,
       ]),
       '-filter_complex_script pipe:',
       ...outputs.flatMap(([outputPath, streams]) => [

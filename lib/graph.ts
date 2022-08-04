@@ -1,5 +1,5 @@
 import { extname } from 'path'
-import { isArray } from './util.js'
+import { isArray, isString } from './util.js'
 import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
 
 export class BaseStream {
@@ -38,7 +38,11 @@ export class Filter {
   public options: unknown[] = []
   public keyValOptions: Map<string, unknown> = new Map()
   constructor(public name: string) {}
-  opt(...values: unknown[]) {
+  opt(value: unknown) {
+    this.options.push(value)
+    return this
+  }
+  opts(values: unknown[]) {
     this.options.push(...values)
     return this
   }
@@ -68,9 +72,7 @@ export class Pipe {
     kvOpts: Record<string, unknown> = {}
   ) {
     const filter = new Filter(name)
-    for (const opt of opts) {
-      filter.opt(opt)
-    }
+    filter.opts(opts)
     for (const [k, v] of Object.entries(kvOpts)) {
       filter.set(k, v)
     }
@@ -96,25 +98,29 @@ export class Pipe {
   }
 }
 
+export type Input = {
+  path: string
+  opts?: string[]
+}
+
 export class FilterGraph {
-  public inputs: Array<[string, string[]]> = []
+  public inputs: Input[] = []
   public outputs: Map<string, Stream[]> = new Map()
   public pipes: Pipe[] = []
   public audioStreams: Set<string> = new Set()
   public videoStreams: Set<string> = new Set()
 
-  constructor(inputs: string[] | [string, string[]][]) {
-    for (const [i, input] of inputs.entries()) {
-      const inputPath = isArray(input) ? input[0] : input
-      const inputOpts = isArray(input) ? input[1] : []
+  constructor(inputs: Array<string | Input>) {
+    for (const [i, input_] of inputs.entries()) {
+      const input = isString(input_) ? { path: input_ } : input_
 
-      this.inputs.push([inputPath, inputOpts])
+      this.inputs.push(input)
 
       const vidId = `${i}:v`
       const audId = `${i}:a`
 
       // TODO FIXME ffprobe?
-      const inputExt = extname(inputPath)
+      const inputExt = extname(input.path)
       if (['.mp4', '.mkv', '.webm'].includes(inputExt)) {
         this.videoStreams.add(vidId)
         this.audioStreams.add(audId)
@@ -246,6 +252,6 @@ export class FilterGraph {
   }
 
   serialize() {
-    return this.pipes.map((t) => t.serialize()).join(';')
+    return this.pipes.map((p) => p.serialize()).join(';')
   }
 }

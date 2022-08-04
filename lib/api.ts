@@ -1,10 +1,8 @@
+import { strict as assert } from 'assert'
 import { range, take } from './util.js'
-import { FilterGraph } from './graph.js'
+import { FilterGraph, Input } from './graph.js'
 
-export function genericCombine(
-  inputs: string[] | [string, string[]][],
-  outputPath: string
-) {
+export function genericCombine(inputs: Input[], outputPath: string) {
   const graph = new FilterGraph(inputs)
   compositeGrid(graph, ['out:v'])
   mixAudio(graph, ['out:a'])
@@ -122,8 +120,23 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   }
 }
 
-export function compositePresentation(graph: FilterGraph, outputIds: string[]) {
-  const [mainId, ...othersIds] = graph.videoStreams
+export function compositePresentation(
+  graph: FilterGraph,
+  outputIds: string[],
+  mainId?: string
+) {
+  let othersIds: string[]
+  if (mainId) {
+    assert.ok(
+      graph.videoStreams.has(mainId),
+      `Not a leaf video stream: [${mainId}]`
+    )
+    const others = new Set(graph.videoStreams)
+    others.delete(mainId)
+    othersIds = [...others]
+  } else {
+    ;[mainId, ...othersIds] = graph.videoStreams
+  }
 
   const nOthers = othersIds.length
   if (nOthers > 4)

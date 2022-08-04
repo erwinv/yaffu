@@ -29,6 +29,10 @@ export function isArray<T>(x: T | T[]): x is Array<T> {
   return x instanceof Array
 }
 
+export function isString(x: unknown): x is string {
+  return typeof x === 'string'
+}
+
 export function asyncNoThrow<Args extends readonly unknown[], R>(
   fn: (...args: Args) => Promise<R>
 ) {

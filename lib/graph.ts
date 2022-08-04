@@ -1,6 +1,7 @@
 import { extname } from 'path'
 import { isArray, isString } from './util.js'
 import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
+import { probe } from './ffmpeg.js'
 
 export class BaseStream {
   public codec?: Codec
@@ -111,23 +112,35 @@ export class FilterGraph {
   public videoStreams: Set<string> = new Set()
 
   constructor(inputs: Array<string | Input>) {
-    for (const [i, input_] of inputs.entries()) {
+    for (const input_ of inputs) {
       const input = isString(input_) ? { path: input_ } : input_
-
       this.inputs.push(input)
-
-      const vidId = `${i}:v`
-      const audId = `${i}:a`
-
-      // TODO FIXME ffprobe?
-      const inputExt = extname(input.path)
-      if (['.mp4', '.mkv', '.webm'].includes(inputExt)) {
-        this.videoStreams.add(vidId)
-        this.audioStreams.add(audId)
-      } else if (['.aac', '.opus'].includes(inputExt)) {
-        this.audioStreams.add(audId)
-      }
     }
+    this.init()
+  }
+
+  private mediaInit?: Promise<void>
+  async init() {
+    if (this.mediaInit) return this.mediaInit.then(() => this)
+
+    this.mediaInit = (async () => {
+      const inputMetadata = await Promise.all(
+        this.inputs.map((input) => probe(input.path))
+      )
+
+      for (const [i, meta] of inputMetadata.entries()) {
+        // TODO this assumes formats that contain at most 1 stream per type
+        // are there even formats/containers that contain 2 or more video/audio streams?
+        if (meta.streams.some((s) => s.codec_type === 'video')) {
+          this.videoStreams.add(`${i}:v`)
+        }
+        if (meta.streams.some((s) => s.codec_type === 'audio')) {
+          this.audioStreams.add(`${i}:a`)
+        }
+      }
+    })()
+
+    return this.mediaInit.then(() => this)
   }
 
   get streams() {

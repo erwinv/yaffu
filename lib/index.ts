@@ -3,7 +3,7 @@ export {
   mixAudio,
   compositeGrid,
   compositePresentation,
-  renderParticipantTrack,
+  renderParticipantVideoTrack,
 } from './api.js'
 export { FilterGraph } from './graph.js'
 export {

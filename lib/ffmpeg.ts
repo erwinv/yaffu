@@ -14,19 +14,47 @@ export class FFmpegError extends Error {
   }
 }
 
-export async function probe(path: string, entry: string) {
+export interface VideoStreamMetadata {
+  codec_type: 'video'
+  width: number
+  height: number
+  pix_fmt: string
+  start_time: string
+  duration: string
+  bit_rate: string
+}
+export interface AudioStreamMetadata {
+  codec_type: 'audio'
+  sample_rate: string
+  channels: number
+  start_time: string
+  duration: string
+  bit_rate: string
+}
+
+export interface ContainerMetadata {
+  streams: Array<VideoStreamMetadata | AudioStreamMetadata>
+  format: {
+    start_time: string
+    duration: string
+    nb_streams: number
+  }
+}
+
+export async function probe(path: string) {
   const ffprobe = spawn(
     'ffprobe',
     [
       '-v error',
-      `-show_entries ${entry}`,
-      '-of default=noprint_wrappers=1:nokey=1',
+      '-print_format json=compact=1',
+      '-show_format',
+      '-show_streams',
       `"${path}"`,
     ],
     { shell: true, stdio: ['ignore', 'pipe', 'inherit'] }
   )
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<ContainerMetadata>((resolve, reject) => {
     const out = [] as string[]
     ffprobe.stdout.on('data', (chunk: Buffer) =>
       out.push(chunk.toString('utf8'))
@@ -34,7 +62,7 @@ export async function probe(path: string, entry: string) {
     ffprobe.on('error', reject)
     ffprobe.on('close', (code) => {
       if (code !== 0) reject()
-      else resolve(out.join('\n'))
+      else resolve(JSON.parse(out.join('')))
     })
   })
 }

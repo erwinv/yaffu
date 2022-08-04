@@ -1,12 +1,14 @@
 import { strict as assert } from 'assert'
 import { range, take } from './util.js'
 import { FilterGraph, Input } from './graph.js'
+import { Participant, Track } from './timeline.js'
+import { mux } from './ffmpeg.js'
 
-export function genericCombine(inputs: Input[], outputPath: string) {
-  const graph = new FilterGraph(inputs)
+export async function genericCombine(inputs: Input[], outputPath: string) {
+  const graph = await new FilterGraph(inputs).init()
   compositeGrid(graph, ['out:v'])
   mixAudio(graph, ['out:a'])
-  return graph.map(['out:v', 'out:a'], outputPath)
+  await mux(graph.map(['out:v', 'out:a'], outputPath))
 }
 
 export function mixAudio(
@@ -193,35 +195,21 @@ export function compositePresentation(
     .filterIf(outputIds.length > 1, 'split', [outputIds.length])
 }
 
-interface ParticipantTrack {
-  participant: {
-    id: string
-    name: string
-  }
-  duration: number
-  clips: Array<{
-    videoId: string
-    trim?: {
-      start: number
-      end: number
-    }
-    delay?: number
-  }>
-}
-
-export function renderParticipantTrack(
+export function renderParticipantVideoTrack(
   graph: FilterGraph,
   outputId: string,
-  track: ParticipantTrack
+  track: Track,
+  participant?: Participant
 ) {
-  const uid = track.participant.id
-  const vidIds = track.clips.map((clip) => clip.videoId)
+  const uid = participant?.id ?? 'anon'
+  const name = participant?.name ?? ''
+  const vidIds = track.cuts.map((clip) => clip.streamId)
 
   // normalize, trim, and delay clips
   const camIds = graph
     .pipeEach(vidIds, (id) => `${uid}:${id}:cam`)
     .buildEach((pipe, i) => {
-      const clip = track.clips[i]
+      const clip = track.cuts[i]
       const trimStart = clip.trim?.start ?? 0
       const trimEnd = clip.trim?.end ?? Infinity
       const delay = clip.delay ?? 0
@@ -238,8 +226,8 @@ export function renderParticipantTrack(
           force_original_aspect_ratio: 'increase',
         })
         .filter('crop', [1280, 720])
-        .filter('drawtext', [], {
-          text: track.participant.name,
+        .filterIf(name.length > 0, 'drawtext', [], {
+          text: name,
           x: 24,
           y: 'h-text_h-12',
           fontcolor: 'white',
@@ -257,8 +245,8 @@ export function renderParticipantTrack(
       color: '0x63666A',
       duration: track.duration / 1000,
     })
-    .filter('drawtext', [], {
-      text: track.participant.name,
+    .filterIf(name.length > 0, 'drawtext', [], {
+      text: name,
       x: '(w-text_w)/2',
       y: '(h-text_h)/2',
       fontcolor: '0xF2E9EA',
@@ -270,7 +258,7 @@ export function renderParticipantTrack(
   graph
     .pipeFoldLeft(camIds, (id) => `${id}:ovl`, outputId, thumbId)
     .build((pipe, i) => {
-      const delay = track.clips[i].delay ?? 0
+      const delay = track.cuts[i].delay ?? 0
       pipe.filter('overlay', [], {
         enable: `'gte(t,${delay / 1000})'`,
         eof_action: 'pass',

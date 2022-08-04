@@ -159,15 +159,18 @@ export default class Timeline {
         nextSpeakers.splice(index, 1)
       }
 
-      const didVisibleSpeakersChange = !isEqualSet(
+      const areVisibleSpeakersSame = isEqualSet(
         new Set(takeRight(speakers, 4)),
         new Set(takeRight(nextSpeakers, 4))
       )
-      const didVisiblePresentationChange =
-        takeRight(presentations, 1) !== takeRight(nextPresentations, 1)
+      const isVisiblePresentationSame = isEqualSet(
+        new Set(takeRight(presentations, 1)),
+        new Set(takeRight(nextPresentations, 1))
+      )
 
-      if (didVisibleSpeakersChange || didVisiblePresentationChange) {
-      }
+      if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
+
+      // TODO cut start/end
     }
   }
 }

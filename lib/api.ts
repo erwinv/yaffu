@@ -41,8 +41,7 @@ export function mixAudio(
 
 export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   const n = graph.videoStreams.size
-  if (n < 1 || n > 16)
-    throw new Error(`Invalid # of video streams (< 1 OR > 16): ${n}`)
+  assert(1 < n && n < 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
 
   const numRows = Math.round(Math.sqrt(n))
   const numCols = Math.ceil(n / numRows)
@@ -68,24 +67,24 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
         .filter('crop', [tileWidth, tileHeight])
     })
 
-  const gridTilesIds = take(tileIds, numTilesOnTopGrid)
-  const gridTilesLayout = range(numFullRows).flatMap((i) => {
-    const y =
-      i === 0
-        ? '0'
-        : range(i)
-            .map(() => 'h0')
-            .join('+')
-    const xs = range(numCols).map((j) => {
-      return j === 0
-        ? '0'
-        : range(j)
-            .map(() => 'w0')
-            .join('+')
-    })
-    return xs.map((x) => `${x}_${y}`)
-  })
   if (numTilesOnTopGrid > 1) {
+    const gridTilesIds = take(tileIds, numTilesOnTopGrid)
+    const gridTilesLayout = range(numFullRows).flatMap((i) => {
+      const y =
+        i === 0
+          ? '0'
+          : range(i)
+              .map(() => 'h0')
+              .join('+')
+      const xs = range(numCols).map((j) => {
+        return j === 0
+          ? '0'
+          : range(j)
+              .map(() => 'w0')
+              .join('+')
+      })
+      return xs.map((x) => `${x}_${y}`)
+    })
     graph.pipe(gridTilesIds, ['grid']).filter('xstack', [], {
       inputs: numTilesOnTopGrid,
       layout: gridTilesLayout,
@@ -127,7 +126,7 @@ export function compositePresentation(
 ) {
   let othersIds: string[]
   if (mainId) {
-    assert.ok(
+    assert(
       graph.videoStreams.has(mainId),
       `Not a leaf video stream: [${mainId}]`
     )
@@ -139,8 +138,7 @@ export function compositePresentation(
   }
 
   const nOthers = othersIds.length
-  if (nOthers > 4)
-    throw new Error(`Invalid # of video srteams (> 4): ${nOthers}`)
+  assert(nOthers <= 4, `Invalid # of video srteams (> 4): ${nOthers}`)
 
   if (nOthers === 0) {
     graph

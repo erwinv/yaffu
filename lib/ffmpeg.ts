@@ -1,7 +1,7 @@
 import { Console } from 'console'
 import { spawn } from 'child_process'
 import { writeFile } from 'fs/promises'
-import { basename, dirname, extname, join } from 'path'
+import { basename, dirname, extname, join, resolve } from 'path'
 import { Readable } from 'stream'
 import { unlinkNoThrow } from './util.js'
 import { FilterGraph } from './graph.js'
@@ -47,7 +47,7 @@ export async function concatDemux(clipPaths: string[], outputPath: string) {
 
   await writeFile(
     concatListPath,
-    clipPaths.map((clipPath) => `file ${clipPath}`).join('\n')
+    clipPaths.map((clipPath) => `file ${resolve(clipPath)}`).join('\n')
   )
 
   const ffmpeg = spawn(

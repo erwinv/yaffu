@@ -2,6 +2,7 @@ import { extname } from 'path'
 import { isArray, isString } from './util.js'
 import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
 import { probe } from './ffmpeg.js'
+import { InputClip } from './timeline.js'
 
 export class BaseStream {
   public codec?: Codec
@@ -99,19 +100,14 @@ export class Pipe {
   }
 }
 
-export type Input = {
-  path: string
-  opts?: string[]
-}
-
 export class FilterGraph {
-  public inputs: Input[] = []
+  public inputs: InputClip[] = []
   public outputs: Map<string, Stream[]> = new Map()
   public pipes: Pipe[] = []
   public audioStreams: Set<string> = new Set()
   public videoStreams: Set<string> = new Set()
 
-  constructor(inputs: Array<string | Input>) {
+  constructor(inputs: Array<string | InputClip>) {
     for (const input_ of inputs) {
       const input = isString(input_) ? { path: input_ } : input_
       this.inputs.push(input)
@@ -125,7 +121,7 @@ export class FilterGraph {
 
     this.mediaInit = (async () => {
       const inputMetadata = await Promise.all(
-        this.inputs.map((input) => probe(input.path))
+        this.inputs.map((input) => input.meta ?? probe(input.path))
       )
 
       for (const [i, meta] of inputMetadata.entries()) {

@@ -3,6 +3,7 @@ import { isString } from './util.js'
 
 interface Clip {
   path: string
+  opts: string[]
   startTime: number
   endTime: number
   hasAudio: boolean
@@ -10,7 +11,8 @@ interface Clip {
   meta: ContainerMetadata
 }
 
-type InputClip = Pick<Clip, 'path' | 'startTime'>
+export type InputClip = Pick<Clip, 'path'> &
+  Partial<Pick<Clip, 'opts' | 'startTime' | 'meta'>>
 
 interface Cut {
   streamId: string
@@ -51,10 +53,12 @@ export default class Timeline {
     const metadata = await Promise.all(clips.map((c) => probe(c.path)))
 
     const clipsToAdd = metadata.map<Clip>((meta, i) => {
-      const startTime = clips[i].startTime + Number(meta.format.start_time)
-      const endTime = startTime + Number(meta.format.duration)
+      const startTime =
+        (clips[i]?.startTime ?? 0) + Number(meta.format.start_time) * 1000
+      const endTime = startTime + Number(meta.format.duration) * 1000
       return {
         path: clips[i].path,
+        opts: clips[i].opts ?? [],
         startTime,
         endTime,
         hasAudio: meta.streams.some((s) => s.codec_type === 'audio'),

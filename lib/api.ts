@@ -1,10 +1,14 @@
 import { strict as assert } from 'assert'
 import { range, take } from './util.js'
-import { FilterGraph, Input } from './graph.js'
+import { FilterGraph } from './graph.js'
+import { InputClip } from './timeline.js'
 import { Participant, Track } from './timeline.js'
 import { mux } from './ffmpeg.js'
 
-export async function genericCombine(inputs: Input[], outputPath: string) {
+export async function genericCombine(
+  inputs: Array<string | InputClip>,
+  outputPath: string
+) {
   const graph = await new FilterGraph(inputs).init()
   compositeGrid(graph, ['out:v'])
   mixAudio(graph, ['out:a'])
@@ -43,7 +47,7 @@ export function mixAudio(
 
 export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   const n = graph.videoStreams.size
-  assert(1 < n && n < 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
+  assert(1 <= n && n <= 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
 
   const numRows = Math.round(Math.sqrt(n))
   const numCols = Math.ceil(n / numRows)

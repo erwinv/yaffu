@@ -1,5 +1,19 @@
-import { ContainerMetadata, probe } from './ffmpeg.js'
-import { isEqualSet, isString, takeRight } from './util.js'
+import {
+  compositeGrid,
+  compositePresentation,
+  mixAudio,
+  renderParticipantVideoTrack,
+} from './api.js'
+import { ContainerMetadata, mergeAV, mux, probe } from './ffmpeg.js'
+import { FilterGraph } from './graph.js'
+import { ffconcatDemux } from './index.js'
+import {
+  isEqualSet,
+  isString,
+  setDiff,
+  takeRight,
+  unlinkNoThrow,
+} from './util.js'
 
 interface Clip {
   path: string
@@ -12,7 +26,7 @@ interface Clip {
 }
 
 export type InputClip = Pick<Clip, 'path'> &
-  Partial<Pick<Clip, 'opts' | 'startTime' | 'meta'>>
+  Partial<Pick<Clip, 'opts' | 'startTime' | 'meta'>> & { duration?: number }
 
 interface Cut {
   streamId: string
@@ -29,21 +43,19 @@ export interface Track {
   cuts: Cut[]
 }
 
-export interface Participant {
-  kind: 'participant'
-  id: string
-  name: string
+export class Participant {
+  static kind = 'participant'
+  constructor(public id: string, public name: string) {}
 }
 
-export interface Presentation {
-  kind: 'presentation'
-  id: string
-  title: string
+export class Presentation {
+  static kind = 'presentation'
+  constructor(public id: string, public title: string) {}
 }
 
-export default class Timeline {
+export class Timeline {
+  #cuts: TimelineCut[] = []
   clips: Map<Participant | Presentation, Clip[]> = new Map()
-  constructor(public duration: number) {}
 
   async addClips(
     owner: Participant | Presentation,
@@ -57,7 +69,8 @@ export default class Timeline {
     const clipsToAdd = metadata.map<Clip>((meta, i) => {
       const startTime =
         (clips[i]?.startTime ?? 0) + Number(meta.format.start_time) * 1000
-      const endTime = startTime + Number(meta.format.duration) * 1000
+      const endTime =
+        startTime + (clips[i].duration ?? Number(meta.format.duration) * 1000)
       return {
         path: clips[i].path,
         opts: clips[i].opts ?? [],
@@ -80,21 +93,10 @@ export default class Timeline {
     return this.addClips(owner, [clip])
   }
 
-  findCuts() {
-    interface SpeakerCutPoint {
-      time: number
-      kind: 'openMic' | 'closeMic'
-      participant: Participant
-    }
-    interface PresentationCutPoint {
-      time: number
-      kind: 'startShare' | 'stopShare'
-      presentation: Presentation
-    }
-
+  #findCuts() {
     const potentialCutPoints: Array<SpeakerCutPoint | PresentationCutPoint> = []
     for (const [owner, clips] of this.clips) {
-      if (owner.kind === 'presentation') {
+      if (owner instanceof Presentation) {
         potentialCutPoints.push(
           ...clips
             .filter((c) => c.hasVideo)
@@ -113,7 +115,7 @@ export default class Timeline {
               ]
             })
         )
-      } else if (owner.kind === 'participant') {
+      } else if (owner instanceof Participant) {
         potentialCutPoints.push(
           ...clips
             .filter((c) => c.hasAudio)
@@ -137,11 +139,12 @@ export default class Timeline {
 
     potentialCutPoints.sort((a, b) => a.time - b.time)
 
-    const cuts = []
+    let speakers: Participant[] = []
+    let presentations: Presentation[] = []
 
-    const speakers: Participant[] = []
-    const presentations: Presentation[] = []
-
+    // TODO FIXME initial cut
+    // TODO FIXME empty cut (black screen)
+    // TODO FIXME multiple events on the same cut point
     for (const point of potentialCutPoints) {
       const nextSpeakers = [...speakers]
       const nextPresentations = [...presentations]
@@ -159,18 +162,198 @@ export default class Timeline {
         nextSpeakers.splice(index, 1)
       }
 
+      const prevVisibleSpeakers = new Set(takeRight(speakers, 4))
+      const nextVisibleSpeakers = new Set(takeRight(nextSpeakers, 4))
       const areVisibleSpeakersSame = isEqualSet(
-        new Set(takeRight(speakers, 4)),
-        new Set(takeRight(nextSpeakers, 4))
+        prevVisibleSpeakers,
+        nextVisibleSpeakers
       )
       const isVisiblePresentationSame = isEqualSet(
         new Set(takeRight(presentations, 1)),
         new Set(takeRight(nextPresentations, 1))
       )
 
+      speakers = nextSpeakers
+      presentations = nextPresentations
+
       if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
 
-      // TODO cut start/end
+      const visibleSpeakers = [...nextVisibleSpeakers]
+      const prevCut = this.#cuts.at(-1)
+      // TODO FIXME stable replace
+      // if (prevCut) {
+      //   const [speakerToHide] = setDiff(
+      //     prevVisibleSpeakers,
+      //     nextVisibleSpeakers
+      //   )
+      //   const [speakerToShow] = setDiff(
+      //     nextVisibleSpeakers,
+      //     prevVisibleSpeakers
+      //   )
+      //   const index = prevCut.speakers.indexOf(speakerToHide)
+      //   if (speakerToShow) {
+      //     visibleSpeakers.splice(index, 1, speakerToShow)
+      //   } else {
+      //     visibleSpeakers.splice(index, 1)
+      //   }
+      // }
+
+      if (prevCut) {
+        prevCut.endTime = point.time
+        if (prevCut.endTime === prevCut.startTime) {
+          const prev = this.#cuts.pop()
+          const prevprev = this.#cuts.pop()
+          if (prev && prevprev) {
+            prev.startTime = prevprev.startTime
+            prev.speakers.push(...prevprev.speakers)
+            this.#cuts.push(prev)
+          }
+        }
+      }
+      const cut = new TimelineCut(
+        visibleSpeakers,
+        presentations.at(-1),
+        point.time
+      )
+      cut.cause = point
+      if (
+        cut.endTime < Infinity ||
+        cut.speakers.length > 0 ||
+        cut.presentation
+      ) {
+        this.#cuts.push(cut)
+      }
     }
   }
+
+  async render() {
+    this.#findCuts()
+    console.dir(this.#cuts, { depth: null })
+    return
+
+    const cutOutputs: string[] = []
+    for (const cut of this.#cuts) {
+      cutOutputs.push(await cut.render(this.clips))
+    }
+
+    await ffconcatDemux(cutOutputs, 'concat.mp4')
+
+    {
+      const audioClips = [...this.clips.values()]
+        .flat()
+        .filter((c) => c.hasAudio)
+      const delays = audioClips.map((c) => c.startTime)
+      const graph = await new FilterGraph(audioClips).init()
+      mixAudio(graph, ['aout'], delays)
+      graph.map(['aout'], 'mix.aac')
+      await mux(graph)
+    }
+
+    try {
+      await mergeAV('mix.aac', 'concat.mp4', 'render.mp4')
+    } finally {
+      // await Promise.all(
+      //   [...cutOutputs, 'mix.aac', 'concat.mp4'].map(unlinkNoThrow)
+      // )
+    }
+  }
+}
+
+interface SpeakerCutPoint {
+  time: number
+  kind: 'openMic' | 'closeMic'
+  participant: Participant
+}
+interface PresentationCutPoint {
+  time: number
+  kind: 'startShare' | 'stopShare'
+  presentation: Presentation
+}
+
+class TimelineCut {
+  endTime = Infinity
+  cause?: SpeakerCutPoint | PresentationCutPoint
+  constructor(
+    public speakers: Participant[],
+    public presentation?: Presentation,
+    public startTime = 0
+  ) {}
+
+  async render(allClips: Timeline['clips']) {
+    const clips = this.speakers
+      .flatMap((s) => allClips.get(s) ?? [])
+      .filter(
+        (clip) =>
+          clip.hasVideo &&
+          overlaps(
+            { start: this.startTime, end: this.endTime },
+            { start: clip.startTime, end: clip.endTime }
+          )
+      )
+    const presentationClip = this.presentation
+      ? allClips
+          .get(this.presentation)
+          ?.filter((c) => c.hasVideo)
+          .at(0)
+      : null
+    if (presentationClip) {
+      clips.unshift(presentationClip)
+    }
+    const graph = await new FilterGraph(clips).init()
+
+    for (const speaker of this.speakers) {
+      const speakerVideoClips =
+        allClips.get(speaker)?.filter((c) => c.hasVideo) ?? []
+      const trackCuts = speakerVideoClips.flatMap<Cut>((clip) => {
+        const vidId = graph.videoStreamsByInput.get(clip)
+        if (!vidId) return []
+        return [
+          {
+            streamId: vidId,
+            kind: 'video',
+            trim: {
+              start: this.startTime - clip.startTime,
+              end:
+                this.endTime < clip.endTime
+                  ? clip.endTime - this.endTime
+                  : Infinity,
+            },
+            delay: this.startTime - clip.startTime,
+          },
+        ]
+      })
+
+      const track: Track = {
+        duration: this.endTime - this.startTime,
+        cuts: trackCuts,
+      }
+      renderParticipantVideoTrack(graph, `${speaker.id}:track`, track, speaker)
+    }
+
+    const presentationId = presentationClip
+      ? graph.videoStreamsByInput.get(presentationClip) ?? null
+      : null
+
+    if (presentationId) {
+      compositePresentation(graph, ['vout'], presentationId)
+    } else {
+      compositeGrid(graph, ['vout'])
+    }
+
+    const output = `cut_${this.startTime}.mp4`
+    graph.map(['vout'], output)
+    await mux(graph)
+    return output
+  }
+}
+
+interface TimelineInterval {
+  start: number
+  end: number
+}
+
+function overlaps(target: TimelineInterval, query: TimelineInterval) {
+  if (query.end <= target.start) return false
+  if (query.start >= target.end) return false
+  return true
 }

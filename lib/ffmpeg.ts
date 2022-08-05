@@ -67,7 +67,11 @@ export async function probe(path: string) {
   })
 }
 
-export async function concatDemux(clipPaths: string[], outputPath: string) {
+export async function concatDemux(
+  clipPaths: string[],
+  outputPath: string,
+  verbose = true
+) {
   const concatListPath = join(
     dirname(outputPath),
     basename(outputPath, extname(outputPath)) + '_concatList.txt' // TODO FIXME use os.tmpdir()
@@ -81,7 +85,7 @@ export async function concatDemux(clipPaths: string[], outputPath: string) {
   const ffmpeg = spawn(
     'ffmpeg',
     [
-      '-v warning',
+      verbose ? '-hide_banner' : '-v warning',
       ...(outputPath.endsWith('.mp4') ? ['-auto_convert 1'] : []),
       '-f concat',
       '-safe 0',
@@ -155,6 +159,40 @@ export async function mux(graph: FilterGraph, verbose = true) {
     })
   } catch (e) {
     await Promise.all(outputs.map(([outputPath]) => unlinkNoThrow(outputPath)))
+    throw e
+  }
+}
+
+export async function mergeAV(
+  audio: string,
+  video: string,
+  output: string,
+  verbose = true
+) {
+  const ffmpeg = spawn(
+    'ffmpeg',
+    [
+      verbose ? '-hide_banner' : '-v warning',
+      `-i ${audio}`,
+      `-i ${video}`,
+      '-c copy',
+      '-y',
+      output,
+    ],
+    { shell: true, stdio: ['ignore', process.stderr, 'inherit'] }
+  )
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg.on('error', reject)
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) reject(new FFmpegError(code ?? NaN))
+        else resolve()
+      })
+    })
+    return output
+  } catch (e) {
+    await unlinkNoThrow(output)
     throw e
   }
 }

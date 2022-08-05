@@ -5,7 +5,7 @@ import { probe } from './ffmpeg.js'
 import { InputClip } from './timeline.js'
 
 export class BaseStream {
-  public codec?: Codec
+  codec?: Codec
   constructor(public id: string) {}
 }
 
@@ -21,8 +21,8 @@ export class AudioStream extends BaseStream {
 }
 
 export class VideoStream extends BaseStream {
-  public framerate = 30
-  public resolution: Resolution = '1080p' // TODO hard-coded for now
+  framerate = 30
+  resolution: Resolution = '1080p' // TODO hard-coded for now
   serialize() {
     if (!this.codec) throw new Error(`Not an output stream: [${this.id}]`)
     return [
@@ -37,8 +37,8 @@ export class VideoStream extends BaseStream {
 type Stream = AudioStream | VideoStream
 
 export class Filter {
-  public options: unknown[] = []
-  public keyValOptions: Map<string, unknown> = new Map()
+  options: unknown[] = []
+  keyValOptions: Map<string, unknown> = new Map()
   constructor(public name: string) {}
   opt(value: unknown) {
     this.options.push(value)
@@ -65,7 +65,7 @@ export class Filter {
 }
 
 export class Pipe {
-  public filters: Filter[] = []
+  filters: Filter[] = []
   constructor(public inputs: string[], public outputs: string[]) {}
 
   filter(
@@ -101,11 +101,12 @@ export class Pipe {
 }
 
 export class FilterGraph {
-  public inputs: InputClip[] = []
-  public outputs: Map<string, Stream[]> = new Map()
-  public pipes: Pipe[] = []
-  public audioStreams: Set<string> = new Set()
-  public videoStreams: Set<string> = new Set()
+  inputs: InputClip[] = []
+  outputs: Map<string, Stream[]> = new Map()
+  pipes: Pipe[] = []
+  audioStreams: Set<string> = new Set()
+  videoStreams: Set<string> = new Set()
+  videoStreamsByInput: Map<InputClip, string> = new Map()
 
   constructor(inputs: Array<string | InputClip>) {
     for (const input_ of inputs) {
@@ -115,11 +116,11 @@ export class FilterGraph {
     this.init()
   }
 
-  private mediaInit?: Promise<void>
+  #mediaInit?: Promise<void>
   async init() {
-    if (this.mediaInit) return this.mediaInit.then(() => this)
+    if (this.#mediaInit) return this.#mediaInit.then(() => this)
 
-    this.mediaInit = (async () => {
+    this.#mediaInit = (async () => {
       const inputMetadata = await Promise.all(
         this.inputs.map((input) => input.meta ?? probe(input.path))
       )
@@ -128,7 +129,9 @@ export class FilterGraph {
         // TODO this assumes formats that contain at most 1 stream per type
         // are there even formats/containers that contain 2 or more video/audio streams?
         if (meta.streams.some((s) => s.codec_type === 'video')) {
-          this.videoStreams.add(`${i}:v`)
+          const vidId = `${i}:v`
+          this.videoStreams.add(vidId)
+          this.videoStreamsByInput.set(this.inputs[i], vidId)
         }
         if (meta.streams.some((s) => s.codec_type === 'audio')) {
           this.audioStreams.add(`${i}:a`)
@@ -136,7 +139,7 @@ export class FilterGraph {
       }
     })()
 
-    return this.mediaInit.then(() => this)
+    return this.#mediaInit.then(() => this)
   }
 
   get streams() {

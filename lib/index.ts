@@ -1,3 +1,4 @@
+export { Timeline, Participant, Presentation } from './timeline.js'
 export {
   genericCombine,
   mixAudio,

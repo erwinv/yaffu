@@ -37,8 +37,18 @@ export function isString(x: unknown): x is string {
   return typeof x === 'string'
 }
 
+export function setDiff<T>(xs: Set<T>, ys: Set<T>) {
+  return new Set(
+    (function* () {
+      for (const x of xs) {
+        if (!ys.has(x)) yield x
+      }
+    })()
+  )
+}
+
 export function isEqualSet<T>(xs: Set<T>, ys: Set<T>) {
-  return xs.size === ys.size && [...xs].every((x) => ys.has(x))
+  return xs.size === ys.size && setDiff(xs, ys).size === 0
 }
 
 export function asyncNoThrow<Args extends readonly unknown[], R>(

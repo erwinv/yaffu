@@ -1,7 +1,8 @@
 import { Console } from 'console'
 import { spawn } from 'child_process'
 import { writeFile } from 'fs/promises'
-import { basename, dirname, extname, join, resolve } from 'path'
+import { tmpdir } from 'os'
+import { basename, extname, join, resolve } from 'path'
 import { Readable } from 'stream'
 import { unlinkNoThrow } from './util.js'
 import { FilterGraph } from './graph.js'
@@ -73,19 +74,18 @@ export async function concatDemux(
   verbose = true
 ) {
   const concatListPath = join(
-    dirname(outputPath),
-    basename(outputPath, extname(outputPath)) + '_concatList.txt' // TODO FIXME use os.tmpdir()
+    tmpdir(),
+    basename(outputPath, extname(outputPath)) + '_concatList.txt'
   )
 
-  await writeFile(
-    concatListPath,
-    clipPaths.map((clipPath) => `file ${resolve(clipPath)}`).join('\n')
-  )
+  const files = clipPaths.map((clipPath) => `file ${resolve(clipPath)}`)
+  console.dir(files)
+  await writeFile(concatListPath, files.join('\n'))
 
   const ffmpeg = spawn(
     'ffmpeg',
     [
-      verbose ? '-hide_banner' : '-v warning',
+      verbose ? '-hide_banner' : '-v error',
       ...(outputPath.endsWith('.mp4') ? ['-auto_convert 1'] : []),
       '-f concat',
       '-safe 0',
@@ -120,11 +120,12 @@ export async function mux(graph: FilterGraph, verbose = true) {
   const inputs = graph.inputs
   const outputs = [...graph.outputs.entries()]
 
-  if (verbose) {
-    console.dir(inputs.map((input) => input.path))
-    console.dir([...graph.outputs.keys()])
-    console.dir(graph.pipes.map((p) => p.serialize()))
+  console.table(inputs)
+  for (const [path, streams] of outputs) {
+    console.info(path)
+    console.table(streams)
   }
+  console.dir(graph.pipes.map((p) => p.serialize()))
 
   const ffmpeg = spawn(
     'ffmpeg',
@@ -172,10 +173,10 @@ export async function mergeAV(
   const ffmpeg = spawn(
     'ffmpeg',
     [
-      verbose ? '-hide_banner' : '-v warning',
+      verbose ? '-hide_banner' : '-v error',
       `-i ${audio}`,
       `-i ${video}`,
-      '-c copy',
+      '-c copy', // TODO probe input codecs and transcode to output format if necessary
       '-y',
       output,
     ],

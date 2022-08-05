@@ -2,15 +2,21 @@ import {
   compositeGrid,
   compositePresentation,
   mixAudio,
+  renderBlackScreen,
   renderParticipantVideoTrack,
 } from './api.js'
-import { ContainerMetadata, mergeAV, mux, probe } from './ffmpeg.js'
+import {
+  ContainerMetadata,
+  mergeAV,
+  mux,
+  concatDemux,
+  probe,
+} from './ffmpeg.js'
 import { FilterGraph } from './graph.js'
-import { ffconcatDemux } from './index.js'
 import {
   isEqualSet,
   isString,
-  setDiff,
+  // setDiff,
   takeRight,
   unlinkNoThrow,
 } from './util.js'
@@ -138,13 +144,13 @@ export class Timeline {
     }
 
     potentialCutPoints.sort((a, b) => a.time - b.time)
+    console.table(potentialCutPoints)
 
     let speakers: Participant[] = []
     let presentations: Presentation[] = []
 
-    // TODO FIXME initial cut
-    // TODO FIXME empty cut (black screen)
-    // TODO FIXME multiple events on the same cut point
+    this.#cuts = [new TimelineCut([])]
+
     for (const point of potentialCutPoints) {
       const nextSpeakers = [...speakers]
       const nextPresentations = [...presentations]
@@ -180,7 +186,7 @@ export class Timeline {
 
       const visibleSpeakers = [...nextVisibleSpeakers]
       const prevCut = this.#cuts.at(-1)
-      // TODO FIXME stable replace
+      // FIXME stable replace
       // if (prevCut) {
       //   const [speakerToHide] = setDiff(
       //     prevVisibleSpeakers,
@@ -200,15 +206,6 @@ export class Timeline {
 
       if (prevCut) {
         prevCut.endTime = point.time
-        if (prevCut.endTime === prevCut.startTime) {
-          const prev = this.#cuts.pop()
-          const prevprev = this.#cuts.pop()
-          if (prev && prevprev) {
-            prev.startTime = prevprev.startTime
-            prev.speakers.push(...prevprev.speakers)
-            this.#cuts.push(prev)
-          }
-        }
       }
       const cut = new TimelineCut(
         visibleSpeakers,
@@ -216,27 +213,36 @@ export class Timeline {
         point.time
       )
       cut.cause = point
-      if (
-        cut.endTime < Infinity ||
-        cut.speakers.length > 0 ||
-        cut.presentation
-      ) {
-        this.#cuts.push(cut)
-      }
+      this.#cuts.push(cut)
+    }
+    const last = this.#cuts.pop()
+    if (last && last.endTime < Infinity) {
+      this.#cuts.push(last)
     }
   }
 
   async render() {
     this.#findCuts()
-    console.dir(this.#cuts, { depth: null })
-    return
+    console.table(
+      this.#cuts.map((cut) => ({
+        ...cut,
+        speakers: cut.speakers.map((s) => s.name),
+        presentation: cut.presentation?.title,
+        cause: {
+          kind: cut.cause?.kind,
+          time: cut.cause?.time,
+        },
+      }))
+    )
 
     const cutOutputs: string[] = []
     for (const cut of this.#cuts) {
-      cutOutputs.push(await cut.render(this.clips))
+      if (cut.startTime < cut.endTime) {
+        cutOutputs.push(await cut.render(this.clips))
+      }
     }
 
-    await ffconcatDemux(cutOutputs, 'concat.mp4')
+    await concatDemux(cutOutputs, 'concat.mp4', false)
 
     {
       const audioClips = [...this.clips.values()]
@@ -246,15 +252,15 @@ export class Timeline {
       const graph = await new FilterGraph(audioClips).init()
       mixAudio(graph, ['aout'], delays)
       graph.map(['aout'], 'mix.aac')
-      await mux(graph)
+      await mux(graph, false)
     }
 
     try {
-      await mergeAV('mix.aac', 'concat.mp4', 'render.mp4')
+      await mergeAV('mix.aac', 'concat.mp4', 'render.mp4', false)
     } finally {
-      // await Promise.all(
-      //   [...cutOutputs, 'mix.aac', 'concat.mp4'].map(unlinkNoThrow)
-      // )
+      await Promise.all(
+        [...cutOutputs, 'mix.aac', 'concat.mp4'].map(unlinkNoThrow)
+      )
     }
   }
 }
@@ -299,6 +305,7 @@ class TimelineCut {
     if (presentationClip) {
       clips.unshift(presentationClip)
     }
+
     const graph = await new FilterGraph(clips).init()
 
     for (const speaker of this.speakers) {
@@ -330,19 +337,36 @@ class TimelineCut {
       renderParticipantVideoTrack(graph, `${speaker.id}:track`, track, speaker)
     }
 
-    const presentationId = presentationClip
+    let presentationId = presentationClip
       ? graph.videoStreamsByInput.get(presentationClip) ?? null
       : null
+    if (presentationClip && presentationId) {
+      if (
+        presentationClip.startTime < this.startTime ||
+        this.endTime < presentationClip.endTime
+      ) {
+        const trimmedId = `${presentationId}:trim`
+        graph
+          .pipe([presentationId], [trimmedId])
+          .filterIf(presentationClip.startTime < this.startTime, 'trim', [], {
+            start: (this.startTime - presentationClip.startTime) / 1000,
+          })
+          .filterIf(this.endTime < presentationClip.endTime, 'trim', [], {
+            end: (presentationClip.endTime - this.endTime) / 1000,
+          })
+        presentationId = trimmedId
+      }
 
-    if (presentationId) {
       compositePresentation(graph, ['vout'], presentationId)
-    } else {
+    } else if (this.speakers.length > 0) {
       compositeGrid(graph, ['vout'])
+    } else if (graph.videoStreams.size === 0) {
+      renderBlackScreen(graph, ['vout'], this.endTime - this.startTime)
     }
 
-    const output = `cut_${this.startTime}.mp4`
+    const output = `cut_${this.startTime / 1000}.mp4`
     graph.map(['vout'], output)
-    await mux(graph)
+    await mux(graph, false)
     return output
   }
 }

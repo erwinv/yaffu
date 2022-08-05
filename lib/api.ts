@@ -269,3 +269,15 @@ export function renderParticipantVideoTrack(
       })
     })
 }
+
+export function renderBlackScreen(
+  graph: FilterGraph,
+  outputIds: string[],
+  duration: number
+) {
+  graph.pipe([], outputIds, 'video').filter('color', [], {
+    size: `${1920}x${1080}`,
+    color: 'black',
+    duration: duration / 1000,
+  })
+}

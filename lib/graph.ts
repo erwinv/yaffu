@@ -22,7 +22,7 @@ export class AudioStream extends BaseStream {
 
 export class VideoStream extends BaseStream {
   framerate = 30
-  resolution: Resolution = '1080p' // TODO hard-coded for now
+  resolution: Resolution = '1080p' // TODO support other resolutions (720p, 360p)
   serialize() {
     if (!this.codec) throw new Error(`Not an output stream: [${this.id}]`)
     return [
@@ -126,8 +126,7 @@ export class FilterGraph {
       )
 
       for (const [i, meta] of inputMetadata.entries()) {
-        // TODO this assumes formats that contain at most 1 stream per type
-        // are there even formats/containers that contain 2 or more video/audio streams?
+        // TODO suport formats/containers that contain more than 1 video/audio streams?
         if (meta.streams.some((s) => s.codec_type === 'video')) {
           const vidId = `${i}:v`
           this.videoStreams.add(vidId)

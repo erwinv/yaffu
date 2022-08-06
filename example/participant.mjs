@@ -1,4 +1,4 @@
-import { FilterGraph, renderParticipantVideoTrack, ffmux } from "yaffu"
+import { FilterGraph, renderParticipantVideoTrack, ffmux } from 'yaffu'
 import { file, maybeDownloadInputFile } from './index.mjs'
 
 await maybeDownloadInputFile()
@@ -7,10 +7,15 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
 {
   // no clips, just thumbnail
   const graph = await new FilterGraph([]).init()
-  renderParticipantVideoTrack(graph, 'vout', {
-    duration: 10000,
-    cuts: [],
-  }, participant)
+  renderParticipantVideoTrack(
+    graph,
+    'vout',
+    {
+      duration: 10000,
+      cuts: [],
+    },
+    participant
+  )
   graph.map(['vout'], 'participant_thumb_only.mp4')
   await ffmux(graph)
 }
@@ -18,18 +23,23 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
 {
   // clip spans whole duration
   const graph = await new FilterGraph([file]).init()
-  renderParticipantVideoTrack(graph, 'vout', {
-    duration: 10000,
-    cuts: [
-      {
-        streamId: '0:v',
-        trim: {
-          start: 10000,
-          end: 20000,
+  renderParticipantVideoTrack(
+    graph,
+    'vout',
+    {
+      duration: 10000,
+      cuts: [
+        {
+          streamId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
         },
-      },
-    ],
-  }, participant)
+      ],
+    },
+    participant
+  )
   graph.map(['vout'], 'participant_clip_1.mp4')
   await ffmux(graph)
 }
@@ -37,19 +47,24 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
 {
   // clip smaller than track duration, show thumbnail
   const graph = await new FilterGraph([file]).init()
-  renderParticipantVideoTrack(graph, 'vout', {
-    duration: 30000,
-    cuts: [
-      {
-        streamId: '0:v',
-        trim: {
-          start: 10000,
-          end: 20000,
+  renderParticipantVideoTrack(
+    graph,
+    'vout',
+    {
+      duration: 30000,
+      cuts: [
+        {
+          streamId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
+          delay: 10000,
         },
-        delay: 10000,
-      },
-    ],
-  }, participant)
+      ],
+    },
+    participant
+  )
   graph.map(['vout'], 'participant_clip_1_thumb.mp4')
   await ffmux(graph)
 }
@@ -57,27 +72,32 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
 {
   // thumbnail in the middle
   const graph = await new FilterGraph([file, file]).init()
-  renderParticipantVideoTrack(graph, 'vout', {
-    duration: 30000,
-    cuts: [
-      {
-        streamId: '0:v',
-        trim: {
-          start: 10000,
-          end: 20000,
+  renderParticipantVideoTrack(
+    graph,
+    'vout',
+    {
+      duration: 30000,
+      cuts: [
+        {
+          streamId: '0:v',
+          trim: {
+            start: 10000,
+            end: 20000,
+          },
+          delay: 0,
         },
-        delay: 0,
-      },
-      {
-        streamId: '1:v',
-        trim: {
-          start: 30000,
-          end: 40000,
+        {
+          streamId: '1:v',
+          trim: {
+            start: 30000,
+            end: 40000,
+          },
+          delay: 20000,
         },
-        delay: 20000,
-      },
-    ],
-  }, participant)
+      ],
+    },
+    participant
+  )
   graph.map(['vout'], 'participant_clip_2_thumb.mp4')
   await ffmux(graph)
 }

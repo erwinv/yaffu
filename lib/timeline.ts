@@ -314,18 +314,21 @@ class TimelineCut {
       const trackCuts = speakerVideoClips.flatMap<Cut>((clip) => {
         const vidId = graph.videoStreamsByInput.get(clip)
         if (!vidId) return []
+        const trimStart = this.startTime - clip.startTime
+        const trimEnd =
+          this.endTime < clip.endTime
+            ? trimStart + (this.endTime - this.startTime)
+            : Infinity
+        const delay = Math.max(0, clip.startTime - this.startTime)
         return [
           {
             streamId: vidId,
             kind: 'video',
             trim: {
-              start: this.startTime - clip.startTime,
-              end:
-                this.endTime < clip.endTime
-                  ? clip.endTime - this.endTime
-                  : Infinity,
+              start: trimStart,
+              end: trimEnd,
             },
-            delay: this.startTime - clip.startTime,
+            delay,
           },
         ]
       })
@@ -341,18 +344,20 @@ class TimelineCut {
       ? graph.videoStreamsByInput.get(presentationClip) ?? null
       : null
     if (presentationClip && presentationId) {
-      if (
-        presentationClip.startTime < this.startTime ||
+      const trimStart = this.startTime - presentationClip.startTime
+      const trimEnd =
         this.endTime < presentationClip.endTime
-      ) {
+          ? trimStart + (this.endTime - this.startTime)
+          : Infinity
+      if (trimStart > 0 || trimEnd < Infinity) {
         const trimmedId = `${presentationId}:trim`
         graph
           .pipe([presentationId], [trimmedId])
-          .filterIf(presentationClip.startTime < this.startTime, 'trim', [], {
-            start: (this.startTime - presentationClip.startTime) / 1000,
+          .filterIf(trimStart > 0, 'trim', [], {
+            start: trimStart / 1000,
           })
-          .filterIf(this.endTime < presentationClip.endTime, 'trim', [], {
-            end: (presentationClip.endTime - this.endTime) / 1000,
+          .filterIf(trimEnd < Infinity, 'trim', [], {
+            end: trimEnd / 1000,
           })
         presentationId = trimmedId
       }

@@ -1,8 +1,6 @@
 import { constants } from 'fs'
 import { access } from 'fs/promises'
-import {
-  ffprobe,
-} from 'yaffu'
+import { ffprobe } from 'yaffu'
 import { downloadFile } from './util.mjs'
 
 export const file = 'BigBuckBunny-720p.mp4'

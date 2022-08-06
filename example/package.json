@@ -1,8 +1,5 @@
 {
   "private": true,
-  "scripts": {
-    "test": "node index.mjs"
-  },
   "dependencies": {
     "lodash-es": "^4.17.21",
     "yaffu": "file:.."

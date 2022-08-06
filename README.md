@@ -12,13 +12,25 @@ npm install yaffu@latest
 
 ## Example
 
-Run the `example/index.mjs` script which demos `genericCombine` (mixes all audio and stacks all video on a centered grid):
+Run the `example/grid.mjs` script which demos `genericCombine` (mixes all audio and stacks all video on a centered grid):
 
 ```
 git clone https://github.com/erwinv/yaffu
-cd yaffu/example
+cd yaffu
+
+# build modules
 npm install
-npm run test
+npm run build
+
+# run examples
+cd example
+npm install
+node grid.mjs
+
+# other examples
+node presentation.mjs
+node participant.mjs
+node full.mjs
 ```
 
 Using `genericCombine` is as simple as:

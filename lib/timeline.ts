@@ -315,7 +315,7 @@ class TimelineCut {
       const speakerVideoClips =
         allClips.get(speaker)?.filter((c) => c.hasVideo) ?? []
       const trackCuts = speakerVideoClips.flatMap<Cut>((clip) => {
-        const vidId = graph.videoStreamsByInput.get(clip)
+        const vidId = graph.rootVideoStreamsByInput.get(clip)
         if (!vidId) return []
         const trimStart = this.startTime - clip.startTime
         const trimEnd =
@@ -344,7 +344,7 @@ class TimelineCut {
     }
 
     let presentationId = presentationClip
-      ? graph.videoStreamsByInput.get(presentationClip) ?? null
+      ? graph.rootVideoStreamsByInput.get(presentationClip) ?? null
       : null
     if (presentationClip && presentationId) {
       const trimStart = this.startTime - presentationClip.startTime
@@ -368,7 +368,7 @@ class TimelineCut {
       compositePresentation(graph, ['vout'], presentationId)
     } else if (this.speakers.length > 0) {
       compositeGrid(graph, ['vout'])
-    } else if (graph.videoStreams.size === 0) {
+    } else if (graph.leafVideoStreams.size === 0) {
       renderBlackScreen(graph, ['vout'], this.endTime - this.startTime)
     }
 

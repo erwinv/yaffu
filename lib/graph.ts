@@ -104,9 +104,11 @@ export class FilterGraph {
   inputs: InputClip[] = []
   outputs: Map<string, Stream[]> = new Map()
   pipes: Pipe[] = []
-  audioStreams: Set<string> = new Set()
-  videoStreams: Set<string> = new Set()
-  videoStreamsByInput: Map<InputClip, string> = new Map()
+  rootAudioStreams: Set<string> = new Set()
+  rootVideoStreams: Set<string> = new Set()
+  leafAudioStreams: Set<string> = new Set()
+  leafVideoStreams: Set<string> = new Set()
+  rootVideoStreamsByInput: Map<InputClip, string> = new Map()
 
   constructor(inputs: Array<string | InputClip>) {
     for (const input_ of inputs) {
@@ -129,20 +131,19 @@ export class FilterGraph {
         // TODO suport formats/containers that contain more than 1 video/audio streams?
         if (meta.streams.some((s) => s.codec_type === 'video')) {
           const vidId = `${i}:v`
-          this.videoStreams.add(vidId)
-          this.videoStreamsByInput.set(this.inputs[i], vidId)
+          this.rootVideoStreams.add(vidId)
+          this.leafVideoStreams.add(vidId)
+          this.rootVideoStreamsByInput.set(this.inputs[i], vidId)
         }
         if (meta.streams.some((s) => s.codec_type === 'audio')) {
-          this.audioStreams.add(`${i}:a`)
+          const audId = `${i}:a`
+          this.rootAudioStreams.add(audId)
+          this.leafAudioStreams.add(audId)
         }
       }
     })()
 
     return this.#mediaInit.then(() => this)
-  }
-
-  get streams() {
-    return new Set([...this.audioStreams, ...this.videoStreams])
   }
 
   pipe(
@@ -153,11 +154,14 @@ export class FilterGraph {
     const streamIds = [..._streamIds]
 
     for (const streamId of streamIds) {
-      if (!this.streams.has(streamId))
+      if (
+        !this.leafVideoStreams.has(streamId) &&
+        !this.leafAudioStreams.has(streamId)
+      )
         throw new Error(`Not a leaf stream: [${streamId}]`)
 
-      const isAudio = this.audioStreams.has(streamId)
-      const isVideo = this.videoStreams.has(streamId)
+      const isAudio = this.leafAudioStreams.has(streamId)
+      const isVideo = this.leafVideoStreams.has(streamId)
 
       if (!streamType) {
         streamType = isAudio ? 'audio' : 'video'
@@ -169,8 +173,8 @@ export class FilterGraph {
           throw new Error(`[${streamId}] is not of type ${streamType}`)
       }
 
-      if (isAudio) this.audioStreams.delete(streamId)
-      if (isVideo) this.videoStreams.delete(streamId)
+      if (isAudio) this.leafAudioStreams.delete(streamId)
+      if (isVideo) this.leafVideoStreams.delete(streamId)
     }
 
     const pipe = new Pipe(streamIds, outputStreamIds)
@@ -178,10 +182,10 @@ export class FilterGraph {
 
     for (const outputKey of pipe.outputs) {
       if (streamType === 'audio') {
-        this.audioStreams.add(outputKey)
+        this.leafAudioStreams.add(outputKey)
       }
       if (streamType === 'video') {
-        this.videoStreams.add(outputKey)
+        this.leafVideoStreams.add(outputKey)
       }
     }
 
@@ -236,10 +240,13 @@ export class FilterGraph {
     const outputExt = extname(outputPath)
 
     for (const streamId of streamIds) {
-      if (!this.streams.has(streamId))
-        throw new Error(`Not a leaf stream: ${streamId}`)
+      if (
+        !this.leafVideoStreams.has(streamId) &&
+        !this.leafAudioStreams.has(streamId)
+      )
+        throw new Error(`Not a leaf stream: [${streamId}]`)
 
-      const isAudio = this.audioStreams.has(streamId)
+      const isAudio = this.leafAudioStreams.has(streamId)
       const stream = isAudio
         ? new AudioStream(streamId)
         : new VideoStream(streamId)

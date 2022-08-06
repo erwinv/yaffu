@@ -1,7 +1,9 @@
+import _ from 'lodash-es'
 import { get } from 'https'
 import { basename, join as joinPath } from 'path'
 import { createWriteStream } from 'fs'
 import { pipeline } from 'stream'
+import { unlink } from 'fs/promises'
 
 export async function downloadFile(url, dir) {
   const filename = basename(url.pathname)
@@ -17,3 +19,5 @@ export async function downloadFile(url, dir) {
     }).on('error', reject)
   })
 }
+
+export const unlinkNoThrow = (...args) => unlink(...args).catch(_.noop)

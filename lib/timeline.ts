@@ -16,7 +16,7 @@ import { FilterGraph } from './graph.js'
 import {
   isEqualSet,
   isString,
-  // setDiff,
+  setDiff,
   takeRight,
   unlinkNoThrow,
 } from './util.js'
@@ -184,25 +184,28 @@ export class Timeline {
 
       if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
 
-      const visibleSpeakers = [...nextVisibleSpeakers]
+      let visibleSpeakers = [...nextVisibleSpeakers]
       const prevCut = this.#cuts.at(-1)
-      // FIXME stable replace
-      // if (prevCut) {
-      //   const [speakerToHide] = setDiff(
-      //     prevVisibleSpeakers,
-      //     nextVisibleSpeakers
-      //   )
-      //   const [speakerToShow] = setDiff(
-      //     nextVisibleSpeakers,
-      //     prevVisibleSpeakers
-      //   )
-      //   const index = prevCut.speakers.indexOf(speakerToHide)
-      //   if (speakerToShow) {
-      //     visibleSpeakers.splice(index, 1, speakerToShow)
-      //   } else {
-      //     visibleSpeakers.splice(index, 1)
-      //   }
-      // }
+      // TODO simplify stable replace
+      if (prevCut) {
+        const [speakerToHide] = setDiff(
+          prevVisibleSpeakers,
+          nextVisibleSpeakers
+        )
+        const [speakerToShow] = setDiff(
+          nextVisibleSpeakers,
+          prevVisibleSpeakers
+        )
+        const index = prevCut.speakers.indexOf(speakerToHide)
+        if (index > -1) {
+          visibleSpeakers = [...prevCut.speakers]
+          if (speakerToShow) {
+            visibleSpeakers.splice(index, 1, speakerToShow)
+          } else {
+            visibleSpeakers.splice(index, 1)
+          }
+        }
+      }
 
       if (prevCut) {
         prevCut.endTime = point.time
@@ -312,20 +315,23 @@ class TimelineCut {
       const speakerVideoClips =
         allClips.get(speaker)?.filter((c) => c.hasVideo) ?? []
       const trackCuts = speakerVideoClips.flatMap<Cut>((clip) => {
-        const vidId = graph.videoStreamsByInput.get(clip)
+        const vidId = graph.rootVideoStreamsByInput.get(clip)
         if (!vidId) return []
+        const trimStart = this.startTime - clip.startTime
+        const trimEnd =
+          this.endTime < clip.endTime
+            ? trimStart + (this.endTime - this.startTime)
+            : Infinity
+        const delay = Math.max(0, clip.startTime - this.startTime)
         return [
           {
             streamId: vidId,
             kind: 'video',
             trim: {
-              start: this.startTime - clip.startTime,
-              end:
-                this.endTime < clip.endTime
-                  ? clip.endTime - this.endTime
-                  : Infinity,
+              start: trimStart,
+              end: trimEnd,
             },
-            delay: this.startTime - clip.startTime,
+            delay,
           },
         ]
       })
@@ -338,21 +344,23 @@ class TimelineCut {
     }
 
     let presentationId = presentationClip
-      ? graph.videoStreamsByInput.get(presentationClip) ?? null
+      ? graph.rootVideoStreamsByInput.get(presentationClip) ?? null
       : null
     if (presentationClip && presentationId) {
-      if (
-        presentationClip.startTime < this.startTime ||
+      const trimStart = this.startTime - presentationClip.startTime
+      const trimEnd =
         this.endTime < presentationClip.endTime
-      ) {
+          ? trimStart + (this.endTime - this.startTime)
+          : Infinity
+      if (trimStart > 0 || trimEnd < Infinity) {
         const trimmedId = `${presentationId}:trim`
         graph
           .pipe([presentationId], [trimmedId])
-          .filterIf(presentationClip.startTime < this.startTime, 'trim', [], {
-            start: (this.startTime - presentationClip.startTime) / 1000,
+          .filterIf(trimStart > 0, 'trim', [], {
+            start: trimStart / 1000,
           })
-          .filterIf(this.endTime < presentationClip.endTime, 'trim', [], {
-            end: (presentationClip.endTime - this.endTime) / 1000,
+          .filterIf(trimEnd < Infinity, 'trim', [], {
+            end: trimEnd / 1000,
           })
         presentationId = trimmedId
       }
@@ -360,7 +368,7 @@ class TimelineCut {
       compositePresentation(graph, ['vout'], presentationId)
     } else if (this.speakers.length > 0) {
       compositeGrid(graph, ['vout'])
-    } else if (graph.videoStreams.size === 0) {
+    } else if (graph.leafVideoStreams.size === 0) {
       renderBlackScreen(graph, ['vout'], this.endTime - this.startTime)
     }
 

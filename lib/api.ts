@@ -21,13 +21,14 @@ export function mixAudio(
   delays: number[] = []
 ) {
   const normalizedIds = graph
-    .pipeEach(graph.audioStreams, (id) => `${id}:norm`)
+    .pipeEach(graph.leafAudioStreams, (id) => `${id}:norm`)
     .buildEach((pipe, i) => {
       const delay = delays[i] ?? 0
 
+      const isRawAudioStream = graph.rootAudioStreams.has(pipe.inputs[i])
       pipe
-        .filter('aresample', [48000], { async: 1 })
-        .filter('pan', [
+        .filterIf(isRawAudioStream, 'aresample', [48000], { async: 1 })
+        .filterIf(isRawAudioStream, 'pan', [
           [
             'stereo',
             'FL<FL+0.5*FC+0.6*BL+0.6*SL',
@@ -46,7 +47,7 @@ export function mixAudio(
 }
 
 export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
-  const n = graph.videoStreams.size
+  const n = graph.leafVideoStreams.size
   assert(1 <= n && n <= 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
 
   const numRows = Math.round(Math.sqrt(n))
@@ -62,11 +63,12 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   const tileHeight = height / numCols
 
   const tileIds = graph
-    .pipeEach(graph.videoStreams, (id) => `${id}:tile`)
-    .buildEach((pipe) => {
+    .pipeEach(graph.leafVideoStreams, (id) => `${id}:tile`)
+    .buildEach((pipe, i) => {
+      const isRawVideoStream = graph.rootVideoStreams.has(pipe.inputs[i])
       pipe
         .filter('setpts', ['PTS-STARTPTS'])
-        .filter('format', ['yuv420p'])
+        .filterIf(isRawVideoStream, 'format', ['yuv420p'])
         .filter('scale', [tileWidth, tileHeight], {
           force_original_aspect_ratio: 'increase',
         })
@@ -133,24 +135,25 @@ export function compositePresentation(
   let othersIds: string[]
   if (mainId) {
     assert(
-      graph.videoStreams.has(mainId),
+      graph.leafVideoStreams.has(mainId),
       `Not a leaf video stream: [${mainId}]`
     )
-    const others = new Set(graph.videoStreams)
+    const others = new Set(graph.leafVideoStreams)
     others.delete(mainId)
     othersIds = [...others]
   } else {
-    ;[mainId, ...othersIds] = graph.videoStreams
+    ;[mainId, ...othersIds] = graph.leafVideoStreams
   }
 
   const nOthers = othersIds.length
   assert(nOthers <= 4, `Invalid # of video srteams (> 4): ${nOthers}`)
 
   if (nOthers === 0) {
+    const isRawVideoStream = graph.rootVideoStreams.has(mainId)
     graph
       .pipe([mainId], outputIds)
       .filter('setpts', ['PTS-STARTPTS'])
-      .filter('format', ['yuv420p'])
+      .filterIf(isRawVideoStream, 'format', ['yuv420p'])
       .filter('scale', [1920, 1080], {
         force_original_aspect_ratio: 'decrease',
       })
@@ -167,10 +170,11 @@ export function compositePresentation(
   const mainTileId = 'main'
   const rightPanelId = 'rightpanel'
 
+  const isRawVideoStream = graph.rootVideoStreams.has(mainId)
   graph
     .pipe([mainId], [mainTileId])
     .filter('setpts', ['PTS-STARTPTS'])
-    .filter('format', ['yuv420p'])
+    .filterIf(isRawVideoStream, 'format', ['yuv420p'])
     .filter('scale', [mainTileWidth, mainTileHeight], {
       force_original_aspect_ratio: 'decrease',
     })
@@ -178,10 +182,11 @@ export function compositePresentation(
 
   const tileIds = graph
     .pipeEach(othersIds, (id) => `${id}:tile`)
-    .buildEach((pipe) => {
+    .buildEach((pipe, i) => {
+      const isRawVideoStream = graph.rootVideoStreams.has(pipe.inputs[i])
       pipe
         .filter('setpts', ['PTS-STARTPTS'])
-        .filter('format', ['yuv420p'])
+        .filterIf(isRawVideoStream, 'format', ['yuv420p'])
         .filter('scale', [tileWidth, tileHeight], {
           force_original_aspect_ratio: 'increase',
         })
@@ -217,6 +222,7 @@ export function renderParticipantVideoTrack(
       const trimStart = clip.trim?.start ?? 0
       const trimEnd = clip.trim?.end ?? Infinity
       const delay = clip.delay ?? 0
+      const isRawVideoStream = graph.rootVideoStreams.has(pipe.inputs[i])
       pipe
         .filterIf(trimStart > 0, 'trim', [], {
           start: trimStart / 1000,
@@ -225,7 +231,7 @@ export function renderParticipantVideoTrack(
           end: trimEnd / 1000,
         })
         .filter('setpts', ['PTS-STARTPTS'])
-        .filter('format', ['yuv420p'])
+        .filterIf(isRawVideoStream, 'format', ['yuv420p'])
         .filter('scale', [1280, 720], {
           force_original_aspect_ratio: 'increase',
         })

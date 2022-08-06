@@ -26,7 +26,7 @@ for (const [i, n] of range(1, N + 1).entries()) {
     .map((opts) => ({ path: file, opts }))
 
   const graph = await new FilterGraph(inputs).init()
-  const [main, ...others] = graph.videoStreams
+  const [main, ...others] = graph.leafVideoStreams
 
   graph
     .pipeEach(others, (id) => `${id}:cam`)

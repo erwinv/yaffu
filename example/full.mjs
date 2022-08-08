@@ -88,4 +88,4 @@ await timeline.addClip(screen, {
   duration: 40000,
 })
 
-await timeline.render()
+await timeline.render('render.mp4')

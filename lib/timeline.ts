@@ -1,3 +1,4 @@
+import { basename, dirname, extname, join as joinPath } from 'path'
 import {
   compositeGrid,
   compositePresentation,
@@ -224,7 +225,7 @@ export class Timeline {
     }
   }
 
-  async render() {
+  async render(outputPath: string) {
     this.#findCuts()
     console.table(
       this.#cuts.map((cut) => ({
@@ -238,14 +239,19 @@ export class Timeline {
       }))
     )
 
+    const dir = dirname(outputPath)
+    const base = basename(outputPath, extname(outputPath))
+    const vidconcatFile = joinPath(dir, base + '_concat.mp4')
+    const audmixFile = joinPath(dir, base + '_mix.aac')
+
     const cutOutputs: string[] = []
     for (const cut of this.#cuts) {
       if (cut.startTime < cut.endTime) {
-        cutOutputs.push(await cut.render(this.clips))
+        cutOutputs.push(await cut.render(this.clips, dir))
       }
     }
 
-    await concatDemux(cutOutputs, 'concat.mp4', false)
+    await concatDemux(cutOutputs, vidconcatFile, false)
 
     {
       const audioClips = [...this.clips.values()]
@@ -254,15 +260,15 @@ export class Timeline {
       const delays = audioClips.map((c) => c.startTime)
       const graph = await new FilterGraph(audioClips).init()
       mixAudio(graph, ['aout'], delays)
-      graph.map(['aout'], 'mix.aac')
+      graph.map(['aout'], audmixFile)
       await mux(graph, false)
     }
 
     try {
-      await mergeAV('mix.aac', 'concat.mp4', 'render.mp4', false)
+      await mergeAV(audmixFile, vidconcatFile, outputPath, false)
     } finally {
       await Promise.all(
-        [...cutOutputs, 'mix.aac', 'concat.mp4'].map(unlinkNoThrow)
+        [...cutOutputs, audmixFile, vidconcatFile].map(unlinkNoThrow)
       )
     }
   }
@@ -288,7 +294,7 @@ class TimelineCut {
     public startTime = 0
   ) {}
 
-  async render(allClips: Timeline['clips']) {
+  async render(allClips: Timeline['clips'], outputDir: string) {
     const clips = this.speakers
       .flatMap((s) => allClips.get(s) ?? [])
       .filter(
@@ -372,7 +378,7 @@ class TimelineCut {
       renderBlackScreen(graph, ['vout'], this.endTime - this.startTime)
     }
 
-    const output = `cut_${this.startTime / 1000}.mp4`
+    const output = joinPath(outputDir, `cut_${this.startTime / 1000}.mp4`)
     graph.map(['vout'], output)
     await mux(graph, false)
     return output

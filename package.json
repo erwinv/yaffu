@@ -1,34 +1,33 @@
 {
   "name": "yaffu",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Yet Another FFmpeg Util",
-  "type": "module",
+  "type": "commonjs",
   "files": [
     "./build/**/*"
   ],
   "exports": {
     ".": {
-      "types": "./build/types/index.d.ts",
-      "import": "./build/esm/index.js",
-      "require": "./build/commonjs/index.js"
+      "types": "./build/index.d.ts",
+      "require": "./build/index.js",
+      "import": "./build/index.js"
     }
   },
-  "main": "./build/commonjs/index.js",
-  "types": "./build/types/index.d.ts",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
     "format": "prettier --write .",
     "prelint": "npm run format",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts,.mts",
     "prebuild": "npm run lint",
     "build": "tsc",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
     "pretest": "npm run build",
     "test": "jest",
     "build:watch": "tsc -w",
-    "prepublishOnly": "npm run build && npm run build:cjs"
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",

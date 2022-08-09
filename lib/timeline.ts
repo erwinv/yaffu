@@ -153,7 +153,7 @@ export class Timeline {
     let speakers: Participant[] = []
     let presentations: Presentation[] = []
 
-    this.#cuts = [new TimelineCut([])]
+    this.#cuts = [new TimelineCut([], undefined, undefined, this.resolution)]
 
     for (const point of potentialCutPoints) {
       const nextSpeakers = [...speakers]

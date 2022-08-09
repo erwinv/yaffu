@@ -16,7 +16,7 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
     },
     participant
   )
-  graph.map(['vout'], 'participant_thumb_only.mp4')
+  graph.map(['vout'], 'participant_thumb_only.mp4', '720p')
   await ffmux(graph)
 }
 
@@ -40,7 +40,7 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
     },
     participant
   )
-  graph.map(['vout'], 'participant_clip_1.mp4')
+  graph.map(['vout'], 'participant_clip_1.mp4', '720p')
   await ffmux(graph)
 }
 
@@ -65,7 +65,7 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
     },
     participant
   )
-  graph.map(['vout'], 'participant_clip_1_thumb.mp4')
+  graph.map(['vout'], 'participant_clip_1_thumb.mp4', '720p')
   await ffmux(graph)
 }
 
@@ -98,6 +98,6 @@ const participant = { id: '0', name: 'Big Buck Bunny' }
     },
     participant
   )
-  graph.map(['vout'], 'participant_clip_2_thumb.mp4')
+  graph.map(['vout'], 'participant_clip_2_thumb.mp4', '720p')
   await ffmux(graph)
 }

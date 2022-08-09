@@ -4,15 +4,17 @@ import { FilterGraph } from './graph.js'
 import { InputClip } from './timeline.js'
 import { Participant, Track } from './timeline.js'
 import { mux } from './ffmpeg.js'
+import { Resolution, SIZE } from './codec.js'
 
 export async function genericCombine(
   inputs: Array<string | InputClip>,
-  outputPath: string
+  outputPath: string,
+  resolution: Resolution = '1080p'
 ) {
   const graph = await new FilterGraph(inputs).init()
-  compositeGrid(graph, ['out:v'])
+  compositeGrid(graph, ['out:v'], resolution)
   mixAudio(graph, ['out:a'])
-  await mux(graph.map(['out:v', 'out:a'], outputPath))
+  await mux(graph.map(['out:v', 'out:a'], outputPath, resolution))
 }
 
 export function mixAudio(
@@ -46,7 +48,11 @@ export function mixAudio(
     .filterIf(outputIds.length > 1, 'asplit', [outputIds.length])
 }
 
-export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
+export function compositeGrid(
+  graph: FilterGraph,
+  outputIds: string[],
+  resolution: Resolution = '1080p'
+) {
   const n = graph.leafVideoStreams.size
   assert(1 <= n && n <= 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
 
@@ -57,10 +63,9 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
   const numTilesOnTopGrid = numFullRows * numCols
   const numTilesOnBottomRow = n % numCols
 
-  const width = 1920
-  const height = 1080
-  const tileWidth = width / numCols
-  const tileHeight = height / numCols
+  const { width: W, height: H } = SIZE[resolution]
+  const tileWidth = Math.floor(W / numCols) // {1280,640} % 3 !== 0
+  const tileHeight = H / numCols
 
   const tileIds = graph
     .pipeEach(graph.leafVideoStreams, (id) => `${id}:tile`)
@@ -93,12 +98,15 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
       })
       return xs.map((x) => `${x}_${y}`)
     })
-    graph.pipe(gridTilesIds, ['grid']).filter('xstack', [], {
-      inputs: numTilesOnTopGrid,
-      layout: gridTilesLayout,
-      fill: 'black',
-      shortest: 1,
-    })
+    graph
+      .pipe(gridTilesIds, ['grid'])
+      .filter('xstack', [], {
+        inputs: numTilesOnTopGrid,
+        layout: gridTilesLayout,
+        fill: 'black',
+        shortest: 1,
+      })
+      .filterIf(W % numCols !== 0, 'pad', [W, 'ih', -1, -1])
   }
 
   if (numTilesOnBottomRow > 0) {
@@ -111,18 +119,18 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
         inputs: numTilesOnBottomRow,
         shortest: 1,
       })
-      .filter('pad', [width, 'ih', -1, -1])
+      .filter('pad', [W, 'ih', -1, -1])
 
     graph
       .pipe(['grid', 'botrow'], outputIds)
       .filter('vstack', [], { shortest: 1 })
-      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', height, -1, -1])
+      .filterIf(numFullRows + 1 < numCols, 'pad', ['iw', H, -1, -1])
       .filterIf(outputIds.length > 1, 'split', [outputIds.length])
   } else {
     const grid = numTilesOnTopGrid > 1 ? 'grid' : tileIds[0]
     graph
       .pipe([grid], outputIds)
-      .filter('pad', ['iw', height, -1, -1])
+      .filter('pad', [W, H, -1, -1])
       .filterIf(outputIds.length > 1, 'split', [outputIds.length])
   }
 }
@@ -130,7 +138,8 @@ export function compositeGrid(graph: FilterGraph, outputIds: string[]) {
 export function compositePresentation(
   graph: FilterGraph,
   outputIds: string[],
-  mainId?: string
+  mainId?: string,
+  resolution: Resolution = '1080p'
 ) {
   let othersIds: string[]
   if (mainId) {
@@ -148,24 +157,26 @@ export function compositePresentation(
   const nOthers = othersIds.length
   assert(nOthers <= 4, `Invalid # of video srteams (> 4): ${nOthers}`)
 
+  const { width: W, height: H } = SIZE[resolution]
+
   if (nOthers === 0) {
     const isRawVideoStream = graph.rootVideoStreams.has(mainId)
     graph
       .pipe([mainId], outputIds)
       .filter('setpts', ['PTS-STARTPTS'])
       .filterIf(isRawVideoStream, 'format', ['yuv420p'])
-      .filter('scale', [1920, 1080], {
+      .filter('scale', [W, H], {
         force_original_aspect_ratio: 'decrease',
       })
-      .filter('pad', [1920, 1080, -1, -1])
+      .filter('pad', [W, H, -1, -1])
       .filterIf(outputIds.length > 1, 'split', [outputIds.length])
     return
   }
 
-  const mainTileWidth = (1920 * 3) / 4
-  const mainTileHeight = 1080
-  const tileWidth = 1920 / 4
-  const tileHeight = 1080 / 4
+  const mainTileWidth = (W * 3) / 4
+  const mainTileHeight = H
+  const tileWidth = W / 4
+  const tileHeight = H / 4
 
   const mainTileId = 'main'
   const rightPanelId = 'rightpanel'
@@ -196,7 +207,7 @@ export function compositePresentation(
   graph
     .pipe(tileIds, [rightPanelId])
     .filterIf(nOthers > 1, 'vstack', [], { inputs: nOthers })
-    .filterIf(nOthers < 4, 'pad', ['iw', 1080, -1, -1])
+    .filterIf(nOthers < 4, 'pad', ['iw', H, -1, -1])
 
   graph
     .pipe([mainTileId, rightPanelId], outputIds)
@@ -208,8 +219,11 @@ export function renderParticipantVideoTrack(
   graph: FilterGraph,
   outputId: string,
   track: Track,
-  participant?: Participant
+  participant?: Participant,
+  resolution: Resolution = '720p'
 ) {
+  const { width: W, height: H } = SIZE[resolution]
+
   const uid = participant?.id ?? 'anon'
   const name = participant?.name ?? ''
   const vidIds = track.cuts.map((clip) => clip.streamId)
@@ -232,10 +246,10 @@ export function renderParticipantVideoTrack(
         })
         .filter('setpts', ['PTS-STARTPTS'])
         .filterIf(isRawVideoStream, 'format', ['yuv420p'])
-        .filter('scale', [1280, 720], {
+        .filter('scale', [W, H], {
           force_original_aspect_ratio: 'increase',
         })
-        .filter('crop', [1280, 720])
+        .filter('crop', [W, H])
         .filterIf(name.length > 0, 'drawtext', [], {
           text: name,
           x: 24,
@@ -251,7 +265,7 @@ export function renderParticipantVideoTrack(
   graph
     .pipe([], [thumbId], 'video')
     .filter('color', [], {
-      size: `${1280 - 16}x${720 - 8}`, // for border
+      size: `${W - 16}x${H - 8}`, // for border
       color: '0x63666A',
       duration: track.duration / 1000,
     })
@@ -262,7 +276,7 @@ export function renderParticipantVideoTrack(
       fontcolor: '0xF2E9EA',
       fontsize: 60,
     })
-    .filter('pad', [1280, 720, -1, -1, 'black']) // border
+    .filter('pad', [W, H, -1, -1, 'black']) // border
 
   // overlay clips to thumbnail
   graph
@@ -279,10 +293,12 @@ export function renderParticipantVideoTrack(
 export function renderBlackScreen(
   graph: FilterGraph,
   outputIds: string[],
-  duration: number
+  duration: number,
+  resolution: Resolution = '1080p'
 ) {
+  const { width: W, height: H } = SIZE[resolution]
   graph.pipe([], outputIds, 'video').filter('color', [], {
-    size: `${1920}x${1080}`,
+    size: `${W}x${H}`,
     color: 'black',
     duration: duration / 1000,
   })

@@ -6,6 +6,7 @@ import {
   renderBlackScreen,
   renderParticipantVideoTrack,
 } from './api.js'
+import { Resolution } from './codec.js'
 import {
   ContainerMetadata,
   mergeAV,
@@ -63,6 +64,8 @@ export class Presentation {
 export class Timeline {
   #cuts: TimelineCut[] = []
   clips: Map<Participant | Presentation, Clip[]> = new Map()
+
+  constructor(public resolution: Resolution = '1080p') {}
 
   async addClips(
     owner: Participant | Presentation,
@@ -214,7 +217,8 @@ export class Timeline {
       const cut = new TimelineCut(
         visibleSpeakers,
         presentations.at(-1),
-        point.time
+        point.time,
+        this.resolution
       )
       cut.cause = point
       this.#cuts.push(cut)
@@ -291,7 +295,8 @@ class TimelineCut {
   constructor(
     public speakers: Participant[],
     public presentation?: Presentation,
-    public startTime = 0
+    public startTime = 0,
+    public resolution: Resolution = '1080p'
   ) {}
 
   async render(allClips: Timeline['clips'], outputDir: string) {
@@ -371,15 +376,20 @@ class TimelineCut {
         presentationId = trimmedId
       }
 
-      compositePresentation(graph, ['vout'], presentationId)
+      compositePresentation(graph, ['vout'], presentationId, this.resolution)
     } else if (this.speakers.length > 0) {
-      compositeGrid(graph, ['vout'])
+      compositeGrid(graph, ['vout'], this.resolution)
     } else if (graph.leafVideoStreams.size === 0) {
-      renderBlackScreen(graph, ['vout'], this.endTime - this.startTime)
+      renderBlackScreen(
+        graph,
+        ['vout'],
+        this.endTime - this.startTime,
+        this.resolution
+      )
     }
 
     const output = joinPath(outputDir, `cut_${this.startTime / 1000}.mp4`)
-    graph.map(['vout'], output)
+    graph.map(['vout'], output, this.resolution)
     await mux(graph, false)
     return output
   }

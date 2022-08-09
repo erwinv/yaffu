@@ -1,4 +1,10 @@
-export type Resolution = '360p' | '720p' | '1080p'
+export const SIZE = {
+  '1080p': { width: 1920, height: 1080 },
+  '720p': { width: 1280, height: 720 },
+  '360p': { width: 640, height: 360 },
+}
+
+export type Resolution = keyof typeof SIZE
 
 function vp8Opts(resolution: Resolution = '1080p') {
   switch (resolution) {

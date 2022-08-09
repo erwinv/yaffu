@@ -22,7 +22,9 @@ export class AudioStream extends BaseStream {
 
 export class VideoStream extends BaseStream {
   framerate = 30
-  resolution: Resolution = '1080p' // TODO support other resolutions (720p, 360p)
+  constructor(id: string, public resolution: Resolution = '1080p') {
+    super(id)
+  }
   serialize() {
     if (!this.codec) throw new Error(`Not an output stream: [${this.id}]`)
     return [
@@ -234,7 +236,11 @@ export class FilterGraph {
     }
   }
 
-  map(_streamIds: Iterable<string>, outputPath: string) {
+  map(
+    _streamIds: Iterable<string>,
+    outputPath: string,
+    resolution: Resolution = '1080p'
+  ) {
     const streamIds = [..._streamIds]
     const outputStreams: Stream[] = []
     const outputExt = extname(outputPath)
@@ -249,7 +255,7 @@ export class FilterGraph {
       const isAudio = this.leafAudioStreams.has(streamId)
       const stream = isAudio
         ? new AudioStream(streamId)
-        : new VideoStream(streamId)
+        : new VideoStream(streamId, resolution)
 
       switch (outputExt) {
         case '.opus':

@@ -40,9 +40,9 @@ for (const [i, n] of range(1, N + 1).entries()) {
       })
     })
 
-  compositePresentation(graph, ['vout'], main)
+  compositePresentation(graph, ['vout'], main, '720p')
   mixAudio(graph, ['aout'])
-  graph.map(['vout', 'aout'], outputs[i])
+  graph.map(['vout', 'aout'], outputs[i], '720p')
 
   await ffmux(graph)
 }

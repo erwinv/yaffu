@@ -1,4 +1,4 @@
-import { Console } from 'console'
+import { assert, Console } from 'console'
 import { spawn } from 'child_process'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -6,6 +6,7 @@ import { basename, extname, join, resolve } from 'path'
 import { Readable } from 'stream'
 import { unlinkNoThrow } from './util.js'
 import { FilterGraph } from './graph.js'
+import { Codec, ENCODER } from './codec.js'
 
 const console = new Console(process.stderr)
 
@@ -17,6 +18,7 @@ export class FFmpegError extends Error {
 
 export interface VideoStreamMetadata {
   codec_type: 'video'
+  codec_name: string // TODO enum?
   width: number
   height: number
   pix_fmt: string
@@ -26,6 +28,7 @@ export interface VideoStreamMetadata {
 }
 export interface AudioStreamMetadata {
   codec_type: 'audio'
+  codec_name: string // TODO enum?
   sample_rate: string
   channels: number
   start_time: string
@@ -170,13 +173,47 @@ export async function mergeAV(
   output: string,
   verbose = true
 ) {
+  const ext = extname(output)
+  assert(
+    ['.mp4', '.webm'].includes(ext),
+    `Unsupported output format (must be .mp4 or .webm): ${ext}`
+  )
+
+  const targetAudioCodec: Codec = ext === '.mp4' ? 'aac' : 'opus'
+  const targetVideoCodec: Codec = ext === '.mp4' ? 'h264' : 'vp9'
+
+  const inputAudioMeta = await probe(audio)
+  assert(
+    inputAudioMeta.streams[0].codec_type === 'audio',
+    `Not an audio file: ${audio}`
+  )
+  const inputAudioCodec = inputAudioMeta.streams[0].codec_name
+
+  const inputVideoMeta = await probe(video)
+  assert(
+    inputVideoMeta.streams[0].codec_type === 'video',
+    `Not a video file: ${video}`
+  )
+  const inputVideoCodec = inputVideoMeta.streams[0].codec_name
+
+  const codecOpts: string[] = []
+  const shouldTranscodeAudio = inputAudioCodec !== targetAudioCodec
+  const shouldTranscodeVideo = inputVideoCodec !== targetVideoCodec
+  if (!shouldTranscodeAudio && !shouldTranscodeVideo) codecOpts.push('-c copy')
+  else {
+    if (shouldTranscodeAudio)
+      codecOpts.push(`-c:a ${ENCODER[targetAudioCodec]}`)
+    if (shouldTranscodeVideo)
+      codecOpts.push(`-c:v ${ENCODER[targetVideoCodec]}`)
+  }
+
   const ffmpeg = spawn(
     'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v error',
       `-i ${audio}`,
       `-i ${video}`,
-      '-c copy', // TODO probe input codecs and transcode to output format if necessary
+      ...codecOpts,
       '-y',
       output,
     ],

@@ -1,4 +1,5 @@
-import { assert, Console } from 'console'
+import { strict as assert } from 'assert'
+import { Console } from 'console'
 import { spawn } from 'child_process'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -201,10 +202,12 @@ export async function mergeAV(
   const shouldTranscodeVideo = inputVideoCodec !== targetVideoCodec
   if (!shouldTranscodeAudio && !shouldTranscodeVideo) codecOpts.push('-c copy')
   else {
-    if (shouldTranscodeAudio)
-      codecOpts.push(`-c:a ${ENCODER[targetAudioCodec]}`)
-    if (shouldTranscodeVideo)
-      codecOpts.push(`-c:v ${ENCODER[targetVideoCodec]}`)
+    codecOpts.push(
+      `-c:a ${shouldTranscodeAudio ? ENCODER[targetAudioCodec] : 'copy'}`
+    )
+    codecOpts.push(
+      `-c:v ${shouldTranscodeVideo ? ENCODER[targetVideoCodec] : 'copy'}`
+    )
   }
 
   const ffmpeg = spawn(

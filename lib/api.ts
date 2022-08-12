@@ -1,8 +1,7 @@
 import { strict as assert } from 'assert'
 import { range, take } from './util.js'
 import { FilterGraph } from './graph.js'
-import { InputClip } from './timeline.js'
-import { Participant, Track } from './timeline.js'
+import { InputClip, Participant, Track } from './timeline.js'
 import { mux } from './ffmpeg.js'
 import { Resolution, SIZE } from './codec.js'
 

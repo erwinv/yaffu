@@ -1,3 +1,4 @@
+import { strict as assert } from 'assert'
 import { unlink } from 'fs/promises'
 
 export function noop() {} // eslint-disable-line @typescript-eslint/no-empty-function
@@ -49,6 +50,29 @@ export function setDiff<T>(xs: Set<T>, ys: Set<T>) {
 
 export function isEqualSet<T>(xs: Set<T>, ys: Set<T>) {
   return xs.size === ys.size && setDiff(xs, ys).size === 0
+}
+
+export function stableReplace<T>(_prev: T[], _next: Iterable<T>): T[] {
+  const prev = new Set(_prev)
+  const next = new Set(_next)
+
+  assert(Math.abs(prev.size - next.size) <= 1)
+
+  const [removed] = setDiff(prev, next)
+  const [added] = setDiff(next, prev)
+
+  if (!removed) return [..._prev, added]
+
+  const i = _prev.indexOf(removed)
+  if (i < -1) return [..._prev, added]
+
+  const ret = [..._prev]
+  if (added) {
+    ret.splice(i, 1, added)
+  } else {
+    ret.splice(i, 1)
+  }
+  return ret
 }
 
 export function asyncNoThrow<Args extends readonly unknown[], R>(

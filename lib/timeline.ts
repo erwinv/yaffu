@@ -18,7 +18,7 @@ import { FilterGraph } from './graph.js'
 import {
   isEqualSet,
   isString,
-  setDiff,
+  stableReplace,
   takeRight,
   unlinkNoThrow,
 } from './util.js'
@@ -96,7 +96,7 @@ export class Timeline {
     if (!participantClips) {
       this.clips.set(owner, clipsToAdd)
     } else {
-      clips.push(...clipsToAdd)
+      participantClips.push(...clipsToAdd)
     }
   }
   async addClip(owner: Participant | Presentation, clip: string | InputClip) {
@@ -188,28 +188,10 @@ export class Timeline {
 
       if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
 
-      let visibleSpeakers = [...nextVisibleSpeakers]
       const prevCut = this.#cuts.at(-1)
-      // TODO simplify stable replace
-      if (prevCut) {
-        const [speakerToHide] = setDiff(
-          prevVisibleSpeakers,
-          nextVisibleSpeakers
-        )
-        const [speakerToShow] = setDiff(
-          nextVisibleSpeakers,
-          prevVisibleSpeakers
-        )
-        const index = prevCut.speakers.indexOf(speakerToHide)
-        if (index > -1) {
-          visibleSpeakers = [...prevCut.speakers]
-          if (speakerToShow) {
-            visibleSpeakers.splice(index, 1, speakerToShow)
-          } else {
-            visibleSpeakers.splice(index, 1)
-          }
-        }
-      }
+      const visibleSpeakers = prevCut
+        ? stableReplace(prevCut.speakers, nextVisibleSpeakers)
+        : [...nextVisibleSpeakers]
 
       if (prevCut) {
         prevCut.endTime = point.time

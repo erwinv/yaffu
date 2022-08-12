@@ -61,10 +61,10 @@ export function stableReplace<T>(_prev: T[], _next: Iterable<T>): T[] {
   const [removed] = setDiff(prev, next)
   const [added] = setDiff(next, prev)
 
-  if (!removed) return [..._prev, added]
-
   const i = _prev.indexOf(removed)
-  if (i < -1) return [..._prev, added]
+  if (!removed || i < 0) {
+    return added ? [..._prev, added] : _prev
+  }
 
   const ret = [..._prev]
   if (added) {

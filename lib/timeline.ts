@@ -5,6 +5,7 @@ import {
   mixAudio,
   renderBlackScreen,
   renderParticipantVideoTrack,
+  renderSilence,
 } from './api.js'
 import { Resolution } from './codec.js'
 import {
@@ -240,12 +241,22 @@ export class Timeline {
     await concatDemux(cutOutputs, vidconcatFile, false)
 
     {
-      const audioClips = [...this.clips.values()]
-        .flat()
-        .filter((c) => c.hasAudio)
-      const delays = audioClips.map((c) => c.startTime)
+      const allClips = [...this.clips.values()].flat()
+      const audioClips = allClips.filter((c) => c.hasAudio)
       const graph = await new FilterGraph(audioClips).init()
-      mixAudio(graph, ['aout'], delays)
+
+      if (audioClips.length === 0) {
+        const duration =
+          allClips
+            .map((c) => c.endTime)
+            .sort((a, b) => a - b)
+            .at(-1) ?? 0
+        renderSilence(graph, ['aout'], duration)
+      } else {
+        const delays = audioClips.map((c) => c.startTime)
+        mixAudio(graph, ['aout'], delays)
+      }
+
       graph.map(['aout'], audmixFile)
       await mux(graph, false)
     }

@@ -42,8 +42,25 @@ export function mixAudio(
 
   graph
     .pipe(normalizedIds, outputIds)
-    .filter('amix', [], { inputs: normalizedIds.length, normalize: 0 })
+    .filterIf(normalizedIds.length > 1, 'amix', [], {
+      inputs: normalizedIds.length,
+      normalize: 0,
+    })
     .filter('dynaudnorm')
+    .filterIf(outputIds.length > 1, 'asplit', [outputIds.length])
+}
+
+export function renderSilence(
+  graph: FilterGraph,
+  outputIds: string[],
+  duration: number
+) {
+  graph
+    .pipe([], outputIds, 'audio')
+    .filter('anullsrc', [], {
+      sample_rate: 48000,
+      duration: duration / 1000,
+    })
     .filterIf(outputIds.length > 1, 'asplit', [outputIds.length])
 }
 

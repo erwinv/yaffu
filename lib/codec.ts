@@ -6,6 +6,17 @@ export const SIZE = {
 
 export type Resolution = keyof typeof SIZE
 
+function h264Opts(resolution: Resolution = '1080p') {
+  switch (resolution) {
+    case '360p':
+      return ['-crf 18', '-preset veryfast']
+    case '720p':
+      return ['-crf 23', '-preset veryfast']
+    case '1080p':
+      return ['-crf 28', '-preset veryfast']
+  }
+}
+
 function vp8Opts(resolution: Resolution = '1080p') {
   switch (resolution) {
     case '360p':
@@ -95,7 +106,7 @@ export type Codec = keyof typeof ENCODER
 
 export const ENCODER_OPTS: Record<Codec, (res?: Resolution) => string[]> = {
   aac: () => ['-b:a 128k'],
-  h264: () => ['-preset veryfast'],
+  h264: h264Opts,
   opus: () => ['-b:a 128k'],
   vp8: vp8Opts,
   vp9: vp9Opts,

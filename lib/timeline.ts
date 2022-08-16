@@ -15,7 +15,7 @@ import {
   concatDemux,
   probe,
 } from './ffmpeg.js'
-import { FilterGraph } from './graph.js'
+import { FilterGraph, VideoStream } from './graph.js'
 import {
   isEqualSet,
   isString,
@@ -195,7 +195,7 @@ export class Timeline {
         : [...nextVisibleSpeakers]
 
       if (prevCut) {
-        prevCut.endTime = point.time
+        prevCut.endTime = point.time - VideoStream.frameperiod
       }
       const cut = new TimelineCut(
         visibleSpeakers,

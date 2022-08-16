@@ -21,7 +21,8 @@ export class AudioStream extends BaseStream {
 }
 
 export class VideoStream extends BaseStream {
-  framerate = 30
+  static framerate = 24
+  static frameperiod = Number((1000 / VideoStream.framerate).toFixed(3))
   constructor(id: string, public resolution: Resolution = '1080p') {
     super(id)
   }
@@ -31,7 +32,7 @@ export class VideoStream extends BaseStream {
       `-map "[${this.id}]"`,
       `-c:v ${ENCODER[this.codec]}`,
       ...ENCODER_OPTS[this.codec](this.resolution),
-      `-r ${this.framerate}`,
+      `-r ${VideoStream.framerate}`,
     ].join(' ')
   }
 }

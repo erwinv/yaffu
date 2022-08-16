@@ -189,10 +189,10 @@ export function compositePresentation(
     return
   }
 
-  const mainTileWidth = (W * 3) / 4
+  const mainTileWidth = (W * 4) / 5
   const mainTileHeight = H
-  const tileWidth = W / 4
-  const tileHeight = H / 4
+  const tileWidth = W / 5
+  const tileHeight = H / 5
 
   const mainTileId = 'main'
   const rightPanelId = 'rightpanel'
@@ -223,7 +223,7 @@ export function compositePresentation(
   graph
     .pipe(tileIds, [rightPanelId])
     .filterIf(nOthers > 1, 'vstack', [], { inputs: nOthers })
-    .filterIf(nOthers < 4, 'pad', ['iw', H, -1, -1])
+    .filter('pad', ['iw', H, -1, -1])
 
   graph
     .pipe([mainTileId, rightPanelId], outputIds)

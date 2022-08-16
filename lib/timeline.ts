@@ -258,7 +258,7 @@ export class Timeline {
       }
 
       graph.map(['aout'], audmixFile)
-      await mux(graph, false)
+      await mux(graph, false, true)
     }
 
     try {
@@ -383,7 +383,7 @@ class TimelineCut {
 
     const output = joinPath(outputDir, `cut_${this.startTime / 1000}.mp4`)
     graph.map(['vout'], output, this.resolution)
-    await mux(graph, false)
+    await mux(graph, false, true)
     return output
   }
 }

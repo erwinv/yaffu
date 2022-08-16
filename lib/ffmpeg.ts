@@ -118,7 +118,11 @@ export async function concatDemux(
   }
 }
 
-export async function mux(graph: FilterGraph, verbose = true) {
+export async function mux(
+  graph: FilterGraph,
+  verbose = true,
+  bestEffort = false
+) {
   if (graph.outputs.size === 0) throw new Error('No defined output/s')
 
   const inputs = graph.inputs
@@ -154,10 +158,15 @@ export async function mux(graph: FilterGraph, verbose = true) {
 
   try {
     await new Promise<void>((resolve, reject) => {
-      ffmpeg.on('error', reject)
+      const ignoreError = bestEffort // continue even if FFmpeg complains about corrupted inputs
+      const errorHandler = ignoreError ? console.error : reject
+
+      ffmpeg.on('error', errorHandler)
       ffmpeg.on('close', (code) => {
-        if (code !== 0) reject(new FFmpegError(code ?? NaN))
-        else resolve()
+        if (code !== 0) {
+          errorHandler(new FFmpegError(code ?? NaN))
+          if (bestEffort) resolve()
+        } else resolve()
       })
 
       Readable.from(graph.serialize()).pipe(ffmpeg.stdin)

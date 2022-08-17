@@ -1,6 +1,6 @@
 import { ffprobe } from '../build/index.js'
 
-const [,, file] = process.argv
+const [, , file] = process.argv
 
 if (!file) throw new Error()
 

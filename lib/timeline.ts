@@ -68,6 +68,16 @@ export class Timeline {
 
   constructor(public resolution: Resolution = '1080p') {}
 
+  get duration() {
+    return (
+      [...this.clips.values()]
+        .flat()
+        .map((c) => c.endTime)
+        .sort((a, b) => a - b)
+        .at(-1) ?? 0
+    )
+  }
+
   async addClips(
     owner: Participant | Presentation,
     clips_: Array<string | InputClip>
@@ -147,6 +157,13 @@ export class Timeline {
             })
         )
       }
+    }
+
+    if (potentialCutPoints.length === 0) {
+      const cut = new TimelineCut([], undefined, undefined, this.resolution)
+      cut.endTime = this.duration
+      this.#cuts.push(cut)
+      return
     }
 
     potentialCutPoints.sort((a, b) => a.time - b.time)
@@ -247,12 +264,7 @@ export class Timeline {
       const graph = await new FilterGraph(audioClips).init()
 
       if (audioClips.length === 0) {
-        const duration =
-          allClips
-            .map((c) => c.endTime)
-            .sort((a, b) => a - b)
-            .at(-1) ?? 0
-        renderSilence(graph, ['aout'], duration)
+        renderSilence(graph, ['aout'], this.duration)
       } else {
         const delays = audioClips.map((c) => c.startTime)
         mixAudio(graph, ['aout'], delays)

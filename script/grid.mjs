@@ -1,8 +1,8 @@
 import { Participant, Timeline } from '../build/index.js'
 
-const [,, output, ...inputs] = process.argv
+const [, , output, ...inputs] = process.argv
 
-if (!output || inputs.length < 2) throw new Error()
+if (!output || inputs.length === 0) throw new Error()
 
 const timeline = new Timeline('720p')
 

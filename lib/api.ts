@@ -26,7 +26,7 @@ export function mixAudio(
     .buildEach((pipe, i) => {
       const delay = delays[i] ?? 0
 
-      const isRawAudioStream = graph.rootAudioStreams.has(pipe.inputs[i])
+      const isRawAudioStream = graph.rootAudioStreams.has(pipe.inputs[0])
       pipe
         .filterIf(isRawAudioStream, 'aresample', [48000], { async: 1 })
         .filterIf(isRawAudioStream, 'pan', [

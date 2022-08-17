@@ -78,6 +78,7 @@ export class Timeline {
     const metadata = await Promise.all(clips.map((c) => probe(c.path)))
 
     const clipsToAdd = metadata.map<Clip>((meta, i) => {
+      // TODO FIXME handle formats where audio stream starts at negative timestamp
       const startTime =
         (clips[i]?.startTime ?? 0) + Number(meta.format.start_time) * 1000
       const endTime =

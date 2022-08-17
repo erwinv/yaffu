@@ -267,11 +267,12 @@ export function renderParticipantVideoTrack(
         })
         .filter('crop', [W, H])
         .filterIf(name.length > 0, 'drawtext', [], {
-          text: name,
+          text: `'${name}'`,
           x: 24,
           y: 'h-text_h-12',
           fontcolor: 'white',
-          fontsize: 60,
+          fontsize: 64,
+          borderw: 2,
         })
         .filterIf(delay > 0, 'tpad', [], { start_duration: delay / 1000 })
     })
@@ -286,11 +287,11 @@ export function renderParticipantVideoTrack(
       duration: track.duration / 1000,
     })
     .filterIf(name.length > 0, 'drawtext', [], {
-      text: name,
+      text: `'${name}'`,
       x: '(w-text_w)/2',
       y: '(h-text_h)/2',
       fontcolor: '0xF2E9EA',
-      fontsize: 60,
+      fontsize: 64,
     })
     .filter('pad', [W, H, -1, -1, 'black']) // border
 

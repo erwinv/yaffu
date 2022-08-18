@@ -19,25 +19,30 @@ import { FilterGraph, VideoStream } from './graph.js'
 import {
   isEqualSet,
   isString,
+  monotonicId,
   stableReplace,
   takeRight,
   unlinkNoThrow,
 } from './util.js'
 
-interface Clip {
+export interface InputClip {
   path: string
-  opts: string[]
+  opts?: string[]
+  startOffset?: number
+  meta?: ContainerMetadata
+  overrideDuration?: number
+}
+
+interface Clip
+  extends Required<Omit<InputClip, 'startOffset' | 'overrideDuration'>> {
   startTime: number
+  duration: number
   endTime: number
   hasAudio: boolean
   hasVideo: boolean
-  meta: ContainerMetadata
 }
 
-export type InputClip = Pick<Clip, 'path'> &
-  Partial<Pick<Clip, 'opts' | 'startTime' | 'meta'>> & { duration?: number }
-
-interface Cut {
+interface TrimmedClip {
   streamId: string
   kind: 'audio' | 'video'
   trim?: {
@@ -49,21 +54,22 @@ interface Cut {
 
 export interface Track {
   duration: number
-  cuts: Cut[]
+  clips: TrimmedClip[]
 }
 
 export class Participant {
   static kind = 'participant'
-  constructor(public id: string, public name: string) {}
+  constructor(public id: string, public name = '') {}
 }
 
 export class Presentation {
   static kind = 'presentation'
-  constructor(public id: string, public title: string) {}
+  constructor(public id: string, public title = '') {}
 }
 
 export class Timeline {
   #cuts: TimelineCut[] = []
+  inputClips: Map<Participant | Presentation, InputClip[]> = new Map()
   clips: Map<Participant | Presentation, Clip[]> = new Map()
 
   constructor(public resolution: Resolution = '1080p') {}
@@ -78,37 +84,49 @@ export class Timeline {
     )
   }
 
-  async addClips(
+  static id = monotonicId('track')
+  nextId() {
+    return Timeline.id.next().value ?? ''
+  }
+
+  addTrack(
+    nameOrTitle = '',
+    kind: 'participant' | 'presentation' = 'participant'
+  ) {
+    const track =
+      kind === 'participant'
+        ? new Participant(this.nextId(), nameOrTitle)
+        : new Presentation(this.nextId(), nameOrTitle)
+    const trackClips: InputClip[] = []
+    this.inputClips.set(track, trackClips)
+    const builder = {
+      addClip: (...inputClips: Array<string | InputClip>) => {
+        return builder.addClips(inputClips)
+      },
+      addClips: (inputClips: Array<string | InputClip>) => {
+        const clips = inputClips.map((inputClip) =>
+          isString(inputClip) ? { path: inputClip, startOffset: 0 } : inputClip
+        )
+        trackClips.push(...clips)
+        return builder
+      },
+    }
+    return builder
+  }
+
+  addClips(
     owner: Participant | Presentation,
     clips_: Array<string | InputClip>
   ) {
     const clips = clips_.map((c) =>
-      isString(c) ? { path: c, startTime: 0 } : c
+      isString(c) ? { path: c, startOffset: 0 } : c
     )
-    const metadata = await Promise.all(clips.map((c) => probe(c.path)))
 
-    const clipsToAdd = metadata.map<Clip>((meta, i) => {
-      // TODO FIXME handle formats where audio stream starts at negative timestamp
-      const startTime =
-        (clips[i]?.startTime ?? 0) + Number(meta.format.start_time) * 1000
-      const endTime =
-        startTime + (clips[i].duration ?? Number(meta.format.duration) * 1000)
-      return {
-        path: clips[i].path,
-        opts: clips[i].opts ?? [],
-        startTime,
-        endTime,
-        hasAudio: meta.streams.some((s) => s.codec_type === 'audio'),
-        hasVideo: meta.streams.some((s) => s.codec_type === 'video'),
-        meta,
-      }
-    })
-
-    const participantClips = this.clips.get(owner)
+    const participantClips = this.inputClips.get(owner)
     if (!participantClips) {
-      this.clips.set(owner, clipsToAdd)
+      this.inputClips.set(owner, clips)
     } else {
-      participantClips.push(...clipsToAdd)
+      participantClips.push(...clips)
     }
   }
   async addClip(owner: Participant | Presentation, clip: string | InputClip) {
@@ -231,6 +249,32 @@ export class Timeline {
   }
 
   async render(outputPath: string) {
+    for (const [owner, inputClips] of this.inputClips.entries()) {
+      const metadata = await Promise.all(inputClips.map((c) => probe(c.path)))
+      const clips = metadata.map<Clip>((meta, i) => {
+        // TODO FIXME handle formats where audio stream starts at negative timestamp
+        const startTime =
+          (inputClips[i]?.startOffset ?? 0) +
+          Number(meta.format.start_time) * 1000
+        const duration =
+          inputClips[i].overrideDuration ?? Number(meta.format.duration) * 1000
+        const endTime = startTime + duration
+
+        return {
+          path: inputClips[i].path,
+          opts: inputClips[i].opts ?? [],
+          startTime,
+          duration,
+          endTime,
+          hasAudio: meta.streams.some((s) => s.codec_type === 'audio'),
+          hasVideo: meta.streams.some((s) => s.codec_type === 'video'),
+          meta,
+        }
+      })
+
+      this.clips.set(owner, clips)
+    }
+
     this.#findCuts()
     console.table(
       this.#cuts.map((cut) => ({
@@ -331,7 +375,7 @@ class TimelineCut {
     for (const speaker of this.speakers) {
       const speakerVideoClips =
         allClips.get(speaker)?.filter((c) => c.hasVideo) ?? []
-      const trackCuts = speakerVideoClips.flatMap<Cut>((clip) => {
+      const trackCuts = speakerVideoClips.flatMap<TrimmedClip>((clip) => {
         const vidId = graph.rootVideoStreamsByInput.get(clip)
         if (!vidId) return []
         const trimStart = this.startTime - clip.startTime
@@ -355,7 +399,7 @@ class TimelineCut {
 
       const track: Track = {
         duration: this.endTime - this.startTime,
-        cuts: trackCuts,
+        clips: trackCuts,
       }
       renderParticipantVideoTrack(graph, `${speaker.id}:track`, track, speaker)
     }

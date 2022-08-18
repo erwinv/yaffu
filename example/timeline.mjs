@@ -1,13 +1,7 @@
-import { Participant, Presentation, Timeline } from 'yaffu'
+import { Timeline } from 'yaffu'
 import { file, maybeDownloadInputFile } from './index.mjs'
 
 await maybeDownloadInputFile()
-
-const alice = new Participant('spk1', 'Alice')
-const bob = new Participant('spk2', 'Bob')
-const charlie = new Participant('spk3', 'Charlie')
-const david = new Participant('spk4', 'David')
-const screen = new Presentation('scr1', 'Desktop')
 
 const timeline = new Timeline('1080p')
 
@@ -21,71 +15,68 @@ david              [===========]                       [====]
 screen                             [=======================================]
 */
 
-await timeline.addClips(alice, [
-  {
+timeline
+  .addTrack('Alice')
+  .addClips([{
     path: file,
-    opts: ['-t 12'],
-    startTime: 5000,
-    duration: 12000,
-  },
-  {
+    startOffset: 5000,
+    overrideDuration: 12000,
+  }, {
     path: file,
-    opts: ['-ss 12', '-t 40'],
-    startTime: 35000,
-    duration: 40000,
-  },
-])
+    opts: ['-ss 12'],
+    startOffset: 35000,
+    overrideDuration: 40000,
+  }])
 
-await timeline.addClips(bob, [
-  {
+timeline
+  .addTrack('Bob')
+  .addClips([{
     path: file,
-    opts: ['-ss 80', '-t 12'],
-    startTime: 8000,
-    duration: 12000,
-  },
-  {
+    opts: ['-ss 80'],
+    startOffset: 8000,
+    overrideDuration: 12000,
+  }, {
     path: file,
-    opts: ['-ss 92', '-t 25'],
-    startTime: 40000,
-    duration: 25000,
-  },
-])
+    opts: ['-ss 92'],
+    startOffset: 40000,
+    overrideDuration: 25000,
+  }])
 
-await timeline.addClips(charlie, [
-  {
+timeline
+  .addTrack('Charlie')
+  .addClips([{
     path: file,
-    opts: ['-ss 120', '-t 12'],
-    startTime: 11000,
-    duration: 12000,
-  },
-  {
+    opts: ['-ss 120'],
+    startOffset: 11000,
+    overrideDuration: 12000,
+  }, {
     path: file,
-    opts: ['-ss 132', '-t 15'],
-    startTime: 45000,
-    duration: 15000,
-  },
-])
+    opts: ['-ss 132'],
+    startOffset: 45000,
+    overrideDuration: 15000,
+  }])
 
-await timeline.addClips(david, [
-  {
+timeline
+  .addTrack('David')
+  .addClips([{
     path: file,
-    opts: ['-ss 160', '-t 12'],
-    startTime: 14000,
-    duration: 12000,
-  },
-  {
+    opts: ['-ss 160'],
+    startOffset: 14000,
+    overrideDuration: 12000,
+  }, {
     path: file,
-    opts: ['-ss 172', '-t 5'],
-    startTime: 50000,
-    duration: 5000,
-  },
-])
+    opts: ['-ss 172'],
+    startOffset: 50000,
+    overrideDuration: 5000,
+  }])
 
-await timeline.addClip(screen, {
-  path: file,
-  opts: ['-ss 180', '-t 40'],
-  startTime: 30000,
-  duration: 40000,
-})
+timeline
+  .addTrack('Desktop', 'presentation')
+  .addClip({
+    path: file,
+    opts: ['-ss 180'],
+    startOffset: 30000,
+    overrideDuration: 40000,
+  })
 
 await timeline.render('timeline.mp4')

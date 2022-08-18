@@ -15,6 +15,12 @@ export function range(...args: Parameters<typeof _range>) {
   return [..._range(...args)]
 }
 
+export function* monotonicId(prefix = '') {
+  for (const x of _range(Infinity)) {
+    yield `${prefix}${x}`
+  }
+}
+
 export function* _take<T>(xs: Iterable<T>, n: number) {
   for (const x of xs) {
     if (n-- > 0) yield x

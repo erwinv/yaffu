@@ -242,13 +242,13 @@ export function renderParticipantVideoTrack(
 
   const uid = participant?.id ?? 'anon'
   const name = participant?.name ?? ''
-  const vidIds = track.cuts.map((clip) => clip.streamId)
+  const vidIds = track.clips.map((clip) => clip.streamId)
 
   // normalize, trim, and delay clips
   const camIds = graph
     .pipeEach(vidIds, (id) => `${uid}:${id}:cam`)
     .buildEach((pipe, i) => {
-      const clip = track.cuts[i]
+      const clip = track.clips[i]
       const trimStart = clip.trim?.start ?? 0
       const trimEnd = clip.trim?.end ?? Infinity
       const delay = clip.delay ?? 0
@@ -299,7 +299,7 @@ export function renderParticipantVideoTrack(
   graph
     .pipeFoldLeft(camIds, (id) => `${id}:ovl`, outputId, thumbId)
     .build((pipe, i) => {
-      const delay = track.cuts[i].delay ?? 0
+      const delay = track.clips[i].delay ?? 0
       pipe.filter('overlay', [], {
         enable: `'gte(t,${delay / 1000})'`,
         eof_action: 'pass',

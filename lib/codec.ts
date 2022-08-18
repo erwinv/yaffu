@@ -9,11 +9,10 @@ export type Resolution = keyof typeof SIZE
 function h264Opts(resolution: Resolution = '1080p') {
   switch (resolution) {
     case '360p':
-      return ['-crf 18', '-preset veryfast']
     case '720p':
-      return ['-crf 23', '-preset veryfast']
+      return ['-preset veryfast']
     case '1080p':
-      return ['-crf 28', '-preset veryfast']
+      return ['-crf 28', '-preset superfast']
   }
 }
 

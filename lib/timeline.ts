@@ -20,6 +20,7 @@ import {
   isEqualSet,
   isString,
   monotonicId,
+  partition,
   stableReplace,
   takeRight,
   unlinkNoThrow,
@@ -70,6 +71,7 @@ export class Presentation {
 export class Timeline {
   #cuts: TimelineCut[] = []
   inputClips: Map<Participant | Presentation, InputClip[]> = new Map()
+  startTalkTimestamps: Map<Participant, number[]> = new Map()
   clips: Map<Participant | Presentation, Clip[]> = new Map()
 
   constructor(public resolution: Resolution = '1080p') {}
@@ -99,6 +101,9 @@ export class Timeline {
         : new Presentation(this.nextId(), nameOrTitle)
     const trackClips: InputClip[] = []
     this.inputClips.set(track, trackClips)
+    const startTalkTimestamps: number[] = []
+    if (track instanceof Participant)
+      this.startTalkTimestamps.set(track, startTalkTimestamps)
     const builder = {
       addClip: (...inputClips: Array<string | InputClip>) => {
         return builder.addClips(inputClips)
@@ -109,6 +114,9 @@ export class Timeline {
         )
         trackClips.push(...clips)
         return builder
+      },
+      startTalkAt: (...timestamps: number[]) => {
+        startTalkTimestamps.push(...timestamps)
       },
     }
     return builder
@@ -176,6 +184,15 @@ export class Timeline {
         )
       }
     }
+    for (const [participant, startTalkTimestamps] of this.startTalkTimestamps) {
+      for (const time of startTalkTimestamps) {
+        potentialCutPoints.push({
+          time: time,
+          kind: 'startTalk',
+          participant,
+        })
+      }
+    }
 
     if (potentialCutPoints.length === 0) {
       const cut = new TimelineCut([], undefined, undefined, this.resolution)
@@ -188,6 +205,7 @@ export class Timeline {
     console.table(potentialCutPoints)
 
     let speakers: Participant[] = []
+    let talkers: Participant[] = []
     let presentations: Presentation[] = []
 
     this.#cuts = [new TimelineCut([], undefined, undefined, this.resolution)]
@@ -207,10 +225,19 @@ export class Timeline {
       } else if (point.kind === 'closeMic') {
         const index = nextSpeakers.findIndex((p) => p === point.participant)
         nextSpeakers.splice(index, 1)
+      } else if (point.kind === 'startTalk') {
+        if (talkers.push(point.participant) > 4) {
+          talkers = talkers.slice(-4)
+        }
       }
 
       const prevVisibleSpeakers = new Set(takeRight(speakers, 4))
-      const nextVisibleSpeakers = new Set(takeRight(nextSpeakers, 4))
+      const nextVisibleSpeakers = new Set(
+        takeRight(
+          partition(nextSpeakers, (s) => !talkers.includes(s)).flat(),
+          4
+        )
+      )
       const areVisibleSpeakersSame = isEqualSet(
         prevVisibleSpeakers,
         nextVisibleSpeakers
@@ -336,7 +363,7 @@ export class Timeline {
 
 interface SpeakerCutPoint {
   time: number
-  kind: 'openMic' | 'closeMic'
+  kind: 'openMic' | 'closeMic' | 'startTalk'
   participant: Participant
 }
 interface PresentationCutPoint {

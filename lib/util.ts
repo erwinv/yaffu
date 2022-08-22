@@ -81,6 +81,18 @@ export function stableReplace<T>(_prev: T[], _next: Iterable<T>): T[] {
   return ret
 }
 
+export function partition<T>(xs: T[], predicate: (x: T) => boolean) {
+  const pass: T[] = []
+  const fail: T[] = []
+
+  for (const x of xs) {
+    if (predicate(x)) pass.push(x)
+    else fail.push(x)
+  }
+
+  return [pass, fail] as [pass: T[], fail: T[]]
+}
+
 export function asyncNoThrow<Args extends readonly unknown[], R>(
   fn: (...args: Args) => Promise<R>
 ) {

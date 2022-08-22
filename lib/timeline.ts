@@ -117,6 +117,7 @@ export class Timeline {
       },
       startTalkAt: (...timestamps: number[]) => {
         startTalkTimestamps.push(...timestamps)
+        return builder
       },
     }
     return builder

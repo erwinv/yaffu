@@ -224,8 +224,14 @@ export class Timeline {
       } else if (point.kind === 'openMic') {
         nextSpeakers.push(point.participant)
       } else if (point.kind === 'closeMic') {
-        const index = nextSpeakers.findIndex((p) => p === point.participant)
-        nextSpeakers.splice(index, 1)
+        {
+          const index = nextSpeakers.findIndex((p) => p === point.participant)
+          nextSpeakers.splice(index, 1)
+        }
+        {
+          const index = talkers.findIndex((p) => p === point.participant)
+          talkers.splice(index, 1)
+        }
       } else if (point.kind === 'startTalk') {
         if (
           !talkers.includes(point.participant) &&
@@ -235,7 +241,11 @@ export class Timeline {
         }
       }
 
-      const prevVisibleSpeakers = new Set(takeRight(speakers, 4))
+      const prevCut = this.#cuts.at(-1)
+
+      const prevVisibleSpeakers = new Set(
+        prevCut?.speakers ?? takeRight(speakers, 4)
+      )
       const nextVisibleSpeakers = new Set(
         takeRight(
           partition(nextSpeakers, (s) => !talkers.includes(s)).flat(),
@@ -256,7 +266,6 @@ export class Timeline {
 
       if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
 
-      const prevCut = this.#cuts.at(-1)
       const visibleSpeakers = prevCut
         ? stableReplace(prevCut.speakers, nextVisibleSpeakers)
         : [...nextVisibleSpeakers]

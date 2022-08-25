@@ -227,7 +227,10 @@ export class Timeline {
         const index = nextSpeakers.findIndex((p) => p === point.participant)
         nextSpeakers.splice(index, 1)
       } else if (point.kind === 'startTalk') {
-        if (talkers.push(point.participant) > 4) {
+        if (
+          !talkers.includes(point.participant) &&
+          talkers.push(point.participant) > 4
+        ) {
           talkers = talkers.slice(-4)
         }
       }

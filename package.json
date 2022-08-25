@@ -1,6 +1,6 @@
 {
   "name": "yaffu",
-  "version": "1.4.13",
+  "version": "1.5.0",
   "description": "Yet Another FFmpeg Util",
   "type": "commonjs",
   "files": [

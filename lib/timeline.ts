@@ -301,7 +301,7 @@ export class Timeline {
         const duration = overrideDuration ?? Number(meta.format.duration) * 1000
         const endTime = startTime + duration
 
-        const opts = inputClips[i].opts ?? []
+        const opts: string[] = inputClips[i].opts ?? []
         if (overrideDuration) {
           opts.push(`-t ${overrideDuration / 1000}`)
         }
@@ -341,7 +341,8 @@ export class Timeline {
 
     const cutOutputs: string[] = []
     for (const cut of this.#cuts) {
-      if (cut.startTime < cut.endTime) {
+      const cutDuration = cut.endTime - cut.startTime
+      if (cutDuration > VideoStream.frameperiod) {
         cutOutputs.push(await cut.render(this.clips, dir))
       }
     }

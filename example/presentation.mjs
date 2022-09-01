@@ -44,11 +44,11 @@ for (const [i, n] of range(1, N + 1).entries()) {
   mixAudio(graph, ['aout'])
   graph.map(['vout', 'aout'], outputs[i], '720p')
 
-  await ffmux(graph)
+  await ffmux(graph, false)
 }
 
 try {
-  await ffconcatDemux(outputs, 'presentation_layout.mp4')
+  await ffconcatDemux(outputs, 'presentation_layout.mp4', false)
 } finally {
   await Promise.all(outputs.map(unlinkNoThrow))
 }

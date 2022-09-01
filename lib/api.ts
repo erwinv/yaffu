@@ -13,7 +13,7 @@ export async function genericCombine(
   const graph = await new FilterGraph(inputs).init()
   compositeGrid(graph, ['out:v'], resolution)
   mixAudio(graph, ['out:a'])
-  await mux(graph.map(['out:v', 'out:a'], outputPath, resolution))
+  await mux(graph.map(['out:v', 'out:a'], outputPath, resolution), false)
 }
 
 export function mixAudio(

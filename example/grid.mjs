@@ -23,7 +23,7 @@ for (const [i, n] of range(1, N + 1).entries()) {
 }
 
 try {
-  await ffconcatDemux(outputs, 'grid_layout.mp4')
+  await ffconcatDemux(outputs, 'grid_layout.mp4', false)
 } finally {
   await Promise.all(outputs.map(unlinkNoThrow))
 }

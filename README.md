@@ -1,5 +1,9 @@
 # Yet Another FFmpeg Util
 
+Programmatically combine videos into a merged output with a dynamic layout.
+
+![grid](https://github.com/erwinv/yaffu/assets/1235980/80221643-45b8-4df3-a6bf-98cc243d2854)
+
 ## Dependencies
 
 - FFmpeg
@@ -26,12 +30,11 @@ npm run build
 cd example
 npm install
 node grid.mjs
-
-# other examples
-node presentation.mjs
-node participant.mjs
-node full.mjs
 ```
+
+Output (1080p)
+
+https://github.com/erwinv/yaffu/assets/1235980/4523aca7-e1ea-48d0-9913-081ce9996433
 
 Using `genericCombine` is as simple as:
 
@@ -43,6 +46,25 @@ const inputPaths = [
 ]
 await ffmux(genericCombine(inputPaths, 'combined.mp4'))
 ```
+
+## Timeline Example
+
+Suppose audio/video inputs are given with the following timeline:
+```
+        0    5    10   15   20   25   30   35   40   45   50   55   60   65   70   75   80
+--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|--
+alice        [===========]                 [=======================================]
+bob             [===========]                   [========================]                           
+charlie            [===========]                     [==============]                                
+david                 [===========]                       [====]                                     
+screen                                [=======================================]                      
+```
+
+See `example/timeline.mjs` to see how to encode the above timeline using the API.
+
+Output (720p)
+
+https://github.com/erwinv/yaffu/assets/1235980/ad6e7a41-a0ad-46f5-a7a4-5e30a07ec0c3
 
 ## API
 

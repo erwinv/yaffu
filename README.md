@@ -1,4 +1,4 @@
-# Yet Another FFmpeg Util
+# yaffu - Yet Another FFmpeg Util
 
 Programmatically combine videos into a merged output with a dynamic layout.
 

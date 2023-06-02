@@ -19,7 +19,7 @@ for (const [i, n] of range(1, N + 1).entries()) {
     ])
     .map((opts) => ({ path: file, opts }))
 
-  await genericCombine(inputs, outputs[i], '720p')
+  await genericCombine(inputs, outputs[i], '1080p')
 }
 
 try {

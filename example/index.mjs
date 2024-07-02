@@ -4,7 +4,7 @@ import { ffprobe } from 'yaffu'
 import { downloadFile } from './util.mjs'
 
 export const file = 'BigBuckBunny-720p.mp4'
-const fileHost = new URL('https://erwinvcc.ap-south-1.linodeobjects.com')
+const fileHost = new URL('https://f003.backblazeb2.com/file/erwinvcc')
 const fileDownloadLink = new URL(file, fileHost)
 
 export async function maybeDownloadInputFile() {

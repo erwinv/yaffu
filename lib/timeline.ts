@@ -73,8 +73,11 @@ export class Timeline {
   inputClips: Map<Participant | Presentation, InputClip[]> = new Map()
   startTalkTimestamps: Map<Participant, number[]> = new Map()
   clips: Map<Participant | Presentation, Clip[]> = new Map()
-
-  constructor(public resolution: Resolution = '1080p') {}
+  // CHANGE: Updated Timeline class constructor
+  constructor(
+    public resolution: Resolution = '1080p',
+    public includeVideoOnlyCuts: boolean = false // New option to enable video-only cuts
+  ) {}
 
   get duration() {
     return (
@@ -143,13 +146,24 @@ export class Timeline {
   }
 
   #findCuts() {
+    console.log('Starting #findCuts method')
+    // CHANGE: Use SpeakerCutPoint which includes all possible cut point kinds
     const potentialCutPoints: Array<SpeakerCutPoint | PresentationCutPoint> = []
+
     for (const [owner, clips] of this.clips) {
+      console.log(
+        `Processing clips for owner: ${
+          owner instanceof Participant ? 'Participant' : 'Presentation'
+        } ${owner.id}`
+      )
       if (owner instanceof Presentation) {
         potentialCutPoints.push(
           ...clips
             .filter((c) => c.hasVideo)
             .flatMap((c) => {
+              console.log(
+                `Adding cut points for presentation clip: start=${c.startTime}, end=${c.endTime}`
+              )
               return [
                 {
                   time: c.startTime,
@@ -167,26 +181,55 @@ export class Timeline {
       } else if (owner instanceof Participant) {
         potentialCutPoints.push(
           ...clips
-            .filter((c) => c.hasAudio)
-            .flatMap((c) => {
-              return [
-                {
-                  time: c.startTime,
-                  kind: 'openMic' as const,
-                  participant: owner,
-                },
-                {
-                  time: c.endTime,
-                  kind: 'closeMic' as const,
-                  participant: owner,
-                },
-              ]
+            // CHANGE: Include video-only clips if the new option is enabled
+            .filter(
+              (c) => c.hasAudio || (this.includeVideoOnlyCuts && c.hasVideo)
+            )
+            .flatMap((c): SpeakerCutPoint[] => {
+              console.log(
+                `Adding cut points for participant clip: start=${c.startTime}, end=${c.endTime}, hasAudio=${c.hasAudio}, hasVideo=${c.hasVideo}`
+              )
+              const points: SpeakerCutPoint[] = []
+              if (c.hasAudio) {
+                points.push(
+                  {
+                    time: c.startTime,
+                    kind: 'openMic',
+                    participant: owner,
+                  },
+                  {
+                    time: c.endTime,
+                    kind: 'closeMic',
+                    participant: owner,
+                  }
+                )
+              }
+              // CHANGE: Add cut points for video-only clips if the new option is enabled
+              if (this.includeVideoOnlyCuts && c.hasVideo && !c.hasAudio) {
+                points.push(
+                  {
+                    time: c.startTime,
+                    kind: 'startVideo',
+                    participant: owner,
+                  },
+                  {
+                    time: c.endTime,
+                    kind: 'stopVideo',
+                    participant: owner,
+                  }
+                )
+              }
+              return points
             })
         )
       }
     }
+
     for (const [participant, startTalkTimestamps] of this.startTalkTimestamps) {
       for (const time of startTalkTimestamps) {
+        console.log(
+          `Adding startTalk cut point for participant ${participant.id} at time ${time}`
+        )
         potentialCutPoints.push({
           time: time,
           kind: 'startTalk',
@@ -196,6 +239,9 @@ export class Timeline {
     }
 
     if (potentialCutPoints.length === 0) {
+      console.log(
+        'No potential cut points found. Creating a single cut for the entire duration.'
+      )
       const cut = new TimelineCut([], undefined, undefined, this.resolution)
       cut.endTime = this.duration
       this.#cuts.push(cut)
@@ -212,6 +258,7 @@ export class Timeline {
     this.#cuts = [new TimelineCut([], undefined, undefined, this.resolution)]
 
     for (const point of potentialCutPoints) {
+      console.log(`Processing cut point: ${JSON.stringify(point)}`)
       const nextSpeakers = [...speakers]
       const nextPresentations = [...presentations]
       if (point.kind === 'startShare') {
@@ -221,9 +268,16 @@ export class Timeline {
           (p) => p === point.presentation
         )
         nextPresentations.splice(index, 1)
-      } else if (point.kind === 'openMic') {
+        // CHANGE: Handle video-only cut points
+      } else if (
+        point.kind === 'openMic' ||
+        (this.includeVideoOnlyCuts && point.kind === 'startVideo')
+      ) {
         nextSpeakers.push(point.participant)
-      } else if (point.kind === 'closeMic') {
+      } else if (
+        point.kind === 'closeMic' ||
+        (this.includeVideoOnlyCuts && point.kind === 'stopVideo')
+      ) {
         {
           const index = nextSpeakers.findIndex((p) => p === point.participant)
           nextSpeakers.splice(index, 1)
@@ -261,10 +315,18 @@ export class Timeline {
         new Set(takeRight(nextPresentations, 1))
       )
 
+      console.log(`Visible speakers changed: ${!areVisibleSpeakersSame}`)
+      console.log(`Visible presentation changed: ${!isVisiblePresentationSame}`)
+
       speakers = nextSpeakers
       presentations = nextPresentations
 
-      if (areVisibleSpeakersSame && isVisiblePresentationSame) continue
+      if (areVisibleSpeakersSame && isVisiblePresentationSame) {
+        console.log(
+          'No change in visible speakers or presentations. Continuing to next cut point.'
+        )
+        continue
+      }
 
       const visibleSpeakers = prevCut
         ? stableReplace(prevCut.speakers, nextVisibleSpeakers)
@@ -272,6 +334,7 @@ export class Timeline {
 
       if (prevCut) {
         prevCut.endTime = point.time - VideoStream.frameperiod
+        console.log(`Setting end time of previous cut to ${prevCut.endTime}`)
       }
       const cut = new TimelineCut(
         visibleSpeakers,
@@ -281,11 +344,24 @@ export class Timeline {
       )
       cut.cause = point
       this.#cuts.push(cut)
+      console.log(`Created new cut: ${JSON.stringify(cut)}`)
     }
     const last = this.#cuts.pop()
     if (last && last.endTime < Infinity) {
       this.#cuts.push(last)
+      console.log(`Re-added last cut with end time ${last.endTime}`)
     }
+
+    console.log('Final cuts:')
+    console.table(
+      this.#cuts.map((cut) => ({
+        startTime: cut.startTime,
+        endTime: cut.endTime,
+        speakers: cut.speakers.map((s) => s.id),
+        presentation: cut.presentation?.id,
+        cause: cut.cause?.kind,
+      }))
+    )
   }
 
   async render(outputPath: string) {
@@ -375,11 +451,32 @@ export class Timeline {
   }
 }
 
-interface SpeakerCutPoint {
+// CHANGE: Updated cut point type definitions
+// Define a base type for all possible cut point kinds
+type BaseCutPointKind =
+  | 'openMic'
+  | 'closeMic'
+  | 'startTalk'
+  | 'startVideo'
+  | 'stopVideo'
+
+// Define a type for the original cut point kinds
+type OriginalCutPointKind = 'openMic' | 'closeMic' | 'startTalk'
+
+// Create a generic interface that can be used with or without video-only cut points
+interface GenericSpeakerCutPoint<
+  T extends BaseCutPointKind = OriginalCutPointKind
+> {
   time: number
-  kind: 'openMic' | 'closeMic' | 'startTalk'
+  kind: T
   participant: Participant
 }
+
+// Define the SpeakerCutPoint type based on whether video-only cuts are included
+type SpeakerCutPoint = GenericSpeakerCutPoint<BaseCutPointKind>
+
+// If you need to refer to the original type without video-only cuts, you can use:
+type OriginalSpeakerCutPoint = GenericSpeakerCutPoint<OriginalCutPointKind>
 interface PresentationCutPoint {
   time: number
   kind: 'startShare' | 'stopShare'

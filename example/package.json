@@ -1,7 +1,11 @@
 {
   "private": true,
+  "type": "module",
   "dependencies": {
-    "lodash-es": "^4.17.21",
+    "es-toolkit": "^1.21.0",
     "yaffu": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.2"
   }
 }

@@ -1,13 +1,13 @@
-import { strict as assert } from 'assert'
-import { Console } from 'console'
-import { spawn } from 'child_process'
-import { writeFile } from 'fs/promises'
-import { tmpdir } from 'os'
-import { basename, extname, join, resolve } from 'path'
-import { Readable } from 'stream'
-import { unlinkNoThrow } from './util.js'
-import { FilterGraph } from './graph.js'
+import { strict as assert } from 'node:assert'
+import { spawn } from 'node:child_process'
+import { Console } from 'node:console'
+import { writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, extname, join, resolve } from 'node:path'
+import { Readable } from 'node:stream'
 import { Codec, ENCODER } from './codec.js'
+import { FilterGraph } from './graph.js'
+import { unlinkNoThrow } from './util.js'
 
 const console = new Console(process.stderr)
 
@@ -143,7 +143,7 @@ export async function mux(
         ...(input.opts ?? []),
         `-i "${input.path}"`,
       ]),
-      '-filter_complex_script pipe:',
+      '-/filter_complex pipe:',
       ...outputs.flatMap(([outputPath, streams]) => [
         ...streams.map((stream) => stream.serialize()),
         '-y',

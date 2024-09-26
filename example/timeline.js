@@ -1,5 +1,5 @@
 import { Timeline } from 'yaffu'
-import { file, maybeDownloadInputFile } from './index.mjs'
+import { file, maybeDownloadInputFile } from './index.js'
 
 await maybeDownloadInputFile()
 

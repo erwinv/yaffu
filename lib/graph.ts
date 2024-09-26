@@ -1,8 +1,8 @@
-import { extname } from 'path'
-import { isArray, isString } from './util.js'
+import { extname } from 'node:path'
 import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
 import { probe } from './ffmpeg.js'
 import { InputClip } from './timeline.js'
+import { isArray, isString } from './util.js'
 
 export class BaseStream {
   codec?: Codec
@@ -22,7 +22,7 @@ export class AudioStream extends BaseStream {
 
 export class VideoStream extends BaseStream {
   static framerate = 24
-  static frameperiod = Number((1000 / VideoStream.framerate).toFixed(3))
+  static frameperiod = Number((1_000 / VideoStream.framerate).toFixed(3))
   constructor(id: string, public resolution: Resolution = '1080p') {
     super(id)
   }

@@ -1,13 +1,13 @@
-import { range, take } from 'lodash-es'
+import { range, take } from 'es-toolkit'
 import {
   FilterGraph,
   compositePresentation,
-  mixAudio,
-  ffmux,
   ffconcatDemux,
+  ffmux,
+  mixAudio,
 } from 'yaffu'
-import { file, maybeDownloadInputFile } from './index.mjs'
-import { unlinkNoThrow } from './util.mjs'
+import { file, maybeDownloadInputFile } from './index.js'
+import { unlinkNoThrow } from './util.js'
 
 await maybeDownloadInputFile()
 

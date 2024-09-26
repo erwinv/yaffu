@@ -1,7 +1,7 @@
-import { genericCombine, ffconcatDemux } from 'yaffu'
-import { range, take } from 'lodash-es'
-import { file, maybeDownloadInputFile } from './index.mjs'
-import { unlinkNoThrow } from './util.mjs'
+import { range, take } from 'es-toolkit'
+import { ffconcatDemux, genericCombine } from 'yaffu'
+import { file, maybeDownloadInputFile } from './index.js'
+import { unlinkNoThrow } from './util.js'
 
 await maybeDownloadInputFile()
 

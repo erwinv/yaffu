@@ -1,13 +1,10 @@
 {
+  "extends": "@tsconfig/node20/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2021",
-    "module": "CommonJS",
     "declaration": true,
+    "incremental": true,
     "rootDir": "./lib/",
     "outDir": "./build/",
-    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
   }
 }

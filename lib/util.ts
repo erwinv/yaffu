@@ -1,7 +1,9 @@
-import { strict as assert } from 'assert'
-import { unlink } from 'fs/promises'
+import { strict as assert } from 'node:assert'
+import { unlink } from 'node:fs/promises'
 
-export function noop() {} // eslint-disable-line @typescript-eslint/no-empty-function
+export function noop() {
+  // do nothing
+}
 
 export function* _range(n: number, start = 0) {
   if (n < 1) return

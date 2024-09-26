@@ -16,20 +16,23 @@ npm install yaffu@latest
 
 ## Example
 
-Run the `example/grid.mjs` script which demos `genericCombine` (mixes all audio and stacks all video on a centered grid):
+Run the `example/grid.js` script which demos `genericCombine` (mixes all audio and stacks all video on a centered grid):
 
 ```
 git clone https://github.com/erwinv/yaffu
 cd yaffu
 
+corepack enable
+corepack install
+
 # build modules
-npm install
-npm run build
+pnnpm install
+pnpm build
 
 # run examples
 cd example
-npm install
-node grid.mjs
+pnpm install
+node grid.js
 ```
 
 Output (1080p)
@@ -60,7 +63,7 @@ david                 [===========]                       [====]
 screen                                [=======================================]                      
 ```
 
-See `example/timeline.mjs` to see how to encode the above timeline using the API.
+See `example/timeline.js` to see how to encode the above timeline using the API.
 
 Output (720p)
 

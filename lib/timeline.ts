@@ -1,4 +1,4 @@
-import { basename, dirname, extname, join as joinPath } from 'path'
+import { basename, dirname, extname, join as joinPath } from 'node:path'
 import {
   compositeGrid,
   compositePresentation,
@@ -9,10 +9,10 @@ import {
 } from './api.js'
 import { Resolution } from './codec.js'
 import {
+  concatDemux,
   ContainerMetadata,
   mergeAV,
   mux,
-  concatDemux,
   probe,
 } from './ffmpeg.js'
 import { FilterGraph, VideoStream } from './graph.js'
@@ -476,7 +476,8 @@ interface GenericSpeakerCutPoint<
 type SpeakerCutPoint = GenericSpeakerCutPoint<BaseCutPointKind>
 
 // If you need to refer to the original type without video-only cuts, you can use:
-type OriginalSpeakerCutPoint = GenericSpeakerCutPoint<OriginalCutPointKind>
+// type OriginalSpeakerCutPoint = GenericSpeakerCutPoint<OriginalCutPointKind>
+
 interface PresentationCutPoint {
   time: number
   kind: 'startShare' | 'stopShare'

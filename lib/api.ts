@@ -1,9 +1,9 @@
-import { strict as assert } from 'assert'
-import { range, take } from './util.js'
+import { strict as assert } from 'node:assert'
+import { Resolution, SIZE } from './codec.js'
+import { mux } from './ffmpeg.js'
 import { FilterGraph } from './graph.js'
 import { InputClip, Participant, Track } from './timeline.js'
-import { mux } from './ffmpeg.js'
-import { Resolution, SIZE } from './codec.js'
+import { range, take } from './util.js'
 
 export async function genericCombine(
   inputs: Array<string | InputClip>,

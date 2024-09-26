@@ -56,13 +56,13 @@ export async function probe(path: string) {
       '-show_streams',
       `"${path}"`,
     ],
-    { shell: true, stdio: ['ignore', 'pipe', 'inherit'] }
+    { shell: true, stdio: ['ignore', 'pipe', 'inherit'] },
   )
 
   return new Promise<ContainerMetadata>((resolve, reject) => {
     const out = [] as string[]
     ffprobe.stdout.on('data', (chunk: Buffer) =>
-      out.push(chunk.toString('utf8'))
+      out.push(chunk.toString('utf8')),
     )
     ffprobe.on('error', reject)
     ffprobe.on('close', (code) => {
@@ -75,11 +75,11 @@ export async function probe(path: string) {
 export async function concatDemux(
   clipPaths: string[],
   outputPath: string,
-  verbose = true
+  verbose = true,
 ) {
   const concatListPath = join(
     tmpdir(),
-    basename(outputPath, extname(outputPath)) + '_concatList.txt'
+    basename(outputPath, extname(outputPath)) + '_concatList.txt',
   )
 
   const files = clipPaths.map((clipPath) => `file ${resolve(clipPath)}`)
@@ -98,7 +98,7 @@ export async function concatDemux(
       '-y',
       outputPath,
     ],
-    { shell: true, stdio: ['ignore', process.stderr, 'inherit'] }
+    { shell: true, stdio: ['ignore', process.stderr, 'inherit'] },
   )
 
   try {
@@ -121,7 +121,7 @@ export async function concatDemux(
 export async function mux(
   graph: FilterGraph,
   verbose = true,
-  bestEffort = false
+  bestEffort = false,
 ) {
   if (graph.outputs.size === 0) throw new Error('No defined output/s')
 
@@ -153,7 +153,7 @@ export async function mux(
     {
       shell: true,
       stdio: ['pipe', process.stderr, 'inherit'],
-    }
+    },
   )
 
   try {
@@ -181,12 +181,12 @@ export async function mergeAV(
   audio: string,
   video: string,
   output: string,
-  verbose = true
+  verbose = true,
 ) {
   const ext = extname(output)
   assert(
     ['.mp4', '.webm'].includes(ext),
-    `Unsupported output format (must be .mp4 or .webm): ${ext}`
+    `Unsupported output format (must be .mp4 or .webm): ${ext}`,
   )
 
   const targetAudioCodec: Codec = ext === '.mp4' ? 'aac' : 'opus'
@@ -195,14 +195,14 @@ export async function mergeAV(
   const inputAudioMeta = await probe(audio)
   assert(
     inputAudioMeta.streams[0].codec_type === 'audio',
-    `Not an audio file: ${audio}`
+    `Not an audio file: ${audio}`,
   )
   const inputAudioCodec = inputAudioMeta.streams[0].codec_name
 
   const inputVideoMeta = await probe(video)
   assert(
     inputVideoMeta.streams[0].codec_type === 'video',
-    `Not a video file: ${video}`
+    `Not a video file: ${video}`,
   )
   const inputVideoCodec = inputVideoMeta.streams[0].codec_name
 
@@ -212,10 +212,10 @@ export async function mergeAV(
   if (!shouldTranscodeAudio && !shouldTranscodeVideo) codecOpts.push('-c copy')
   else {
     codecOpts.push(
-      `-c:a ${shouldTranscodeAudio ? ENCODER[targetAudioCodec] : 'copy'}`
+      `-c:a ${shouldTranscodeAudio ? ENCODER[targetAudioCodec] : 'copy'}`,
     )
     codecOpts.push(
-      `-c:v ${shouldTranscodeVideo ? ENCODER[targetVideoCodec] : 'copy'}`
+      `-c:v ${shouldTranscodeVideo ? ENCODER[targetVideoCodec] : 'copy'}`,
     )
   }
 
@@ -229,7 +229,7 @@ export async function mergeAV(
       '-y',
       output,
     ],
-    { shell: true, stdio: ['ignore', process.stderr, 'inherit'] }
+    { shell: true, stdio: ['ignore', process.stderr, 'inherit'] },
   )
 
   try {

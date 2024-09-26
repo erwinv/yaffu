@@ -4,7 +4,6 @@
     "declaration": true,
     "incremental": true,
     "rootDir": "./lib/",
-    "outDir": "./build/",
-    "forceConsistentCasingInFileNames": true,
+    "outDir": "./build/"
   }
 }

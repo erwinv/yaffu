@@ -7,11 +7,6 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: [
-      'build/**/*',
-      'node_modules/**/*',
-      'example/**/*',
-      'script/**/*'
-    ],
-  }
+    ignores: ['build/**/*', 'node_modules/**/*', 'example/**/*', 'script/**/*'],
+  },
 )

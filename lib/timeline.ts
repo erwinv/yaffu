@@ -60,12 +60,18 @@ export interface Track {
 
 export class Participant {
   static kind = 'participant'
-  constructor(public id: string, public name = '') {}
+  constructor(
+    public id: string,
+    public name = '',
+  ) {}
 }
 
 export class Presentation {
   static kind = 'presentation'
-  constructor(public id: string, public title = '') {}
+  constructor(
+    public id: string,
+    public title = '',
+  ) {}
 }
 
 export class Timeline {
@@ -76,7 +82,7 @@ export class Timeline {
   // CHANGE: Updated Timeline class constructor
   constructor(
     public resolution: Resolution = '1080p',
-    public includeVideoOnlyCuts: boolean = false // New option to enable video-only cuts
+    public includeVideoOnlyCuts: boolean = false, // New option to enable video-only cuts
   ) {}
 
   get duration() {
@@ -96,7 +102,7 @@ export class Timeline {
 
   addTrack(
     nameOrTitle = '',
-    kind: 'participant' | 'presentation' = 'participant'
+    kind: 'participant' | 'presentation' = 'participant',
   ) {
     const track =
       kind === 'participant'
@@ -113,7 +119,7 @@ export class Timeline {
       },
       addClips: (inputClips: Array<string | InputClip>) => {
         const clips = inputClips.map((inputClip) =>
-          isString(inputClip) ? { path: inputClip, startOffset: 0 } : inputClip
+          isString(inputClip) ? { path: inputClip, startOffset: 0 } : inputClip,
         )
         trackClips.push(...clips)
         return builder
@@ -128,10 +134,10 @@ export class Timeline {
 
   addClips(
     owner: Participant | Presentation,
-    clips_: Array<string | InputClip>
+    clips_: Array<string | InputClip>,
   ) {
     const clips = clips_.map((c) =>
-      isString(c) ? { path: c, startOffset: 0 } : c
+      isString(c) ? { path: c, startOffset: 0 } : c,
     )
 
     const participantClips = this.inputClips.get(owner)
@@ -154,7 +160,7 @@ export class Timeline {
       console.log(
         `Processing clips for owner: ${
           owner instanceof Participant ? 'Participant' : 'Presentation'
-        } ${owner.id}`
+        } ${owner.id}`,
       )
       if (owner instanceof Presentation) {
         potentialCutPoints.push(
@@ -162,7 +168,7 @@ export class Timeline {
             .filter((c) => c.hasVideo)
             .flatMap((c) => {
               console.log(
-                `Adding cut points for presentation clip: start=${c.startTime}, end=${c.endTime}`
+                `Adding cut points for presentation clip: start=${c.startTime}, end=${c.endTime}`,
               )
               return [
                 {
@@ -176,18 +182,18 @@ export class Timeline {
                   presentation: owner,
                 },
               ]
-            })
+            }),
         )
       } else if (owner instanceof Participant) {
         potentialCutPoints.push(
           ...clips
             // CHANGE: Include video-only clips if the new option is enabled
             .filter(
-              (c) => c.hasAudio || (this.includeVideoOnlyCuts && c.hasVideo)
+              (c) => c.hasAudio || (this.includeVideoOnlyCuts && c.hasVideo),
             )
             .flatMap((c): SpeakerCutPoint[] => {
               console.log(
-                `Adding cut points for participant clip: start=${c.startTime}, end=${c.endTime}, hasAudio=${c.hasAudio}, hasVideo=${c.hasVideo}`
+                `Adding cut points for participant clip: start=${c.startTime}, end=${c.endTime}, hasAudio=${c.hasAudio}, hasVideo=${c.hasVideo}`,
               )
               const points: SpeakerCutPoint[] = []
               if (c.hasAudio) {
@@ -201,7 +207,7 @@ export class Timeline {
                     time: c.endTime,
                     kind: 'closeMic',
                     participant: owner,
-                  }
+                  },
                 )
               }
               // CHANGE: Add cut points for video-only clips if the new option is enabled
@@ -216,11 +222,11 @@ export class Timeline {
                     time: c.endTime,
                     kind: 'stopVideo',
                     participant: owner,
-                  }
+                  },
                 )
               }
               return points
-            })
+            }),
         )
       }
     }
@@ -228,7 +234,7 @@ export class Timeline {
     for (const [participant, startTalkTimestamps] of this.startTalkTimestamps) {
       for (const time of startTalkTimestamps) {
         console.log(
-          `Adding startTalk cut point for participant ${participant.id} at time ${time}`
+          `Adding startTalk cut point for participant ${participant.id} at time ${time}`,
         )
         potentialCutPoints.push({
           time: time,
@@ -240,7 +246,7 @@ export class Timeline {
 
     if (potentialCutPoints.length === 0) {
       console.log(
-        'No potential cut points found. Creating a single cut for the entire duration.'
+        'No potential cut points found. Creating a single cut for the entire duration.',
       )
       const cut = new TimelineCut([], undefined, undefined, this.resolution)
       cut.endTime = this.duration
@@ -265,7 +271,7 @@ export class Timeline {
         nextPresentations.push(point.presentation)
       } else if (point.kind === 'stopShare') {
         const index = nextPresentations.findIndex(
-          (p) => p === point.presentation
+          (p) => p === point.presentation,
         )
         nextPresentations.splice(index, 1)
         // CHANGE: Handle video-only cut points
@@ -298,21 +304,21 @@ export class Timeline {
       const prevCut = this.#cuts.at(-1)
 
       const prevVisibleSpeakers = new Set(
-        prevCut?.speakers ?? takeRight(speakers, 4)
+        prevCut?.speakers ?? takeRight(speakers, 4),
       )
       const nextVisibleSpeakers = new Set(
         takeRight(
           partition(nextSpeakers, (s) => !talkers.includes(s)).flat(),
-          4
-        )
+          4,
+        ),
       )
       const areVisibleSpeakersSame = isEqualSet(
         prevVisibleSpeakers,
-        nextVisibleSpeakers
+        nextVisibleSpeakers,
       )
       const isVisiblePresentationSame = isEqualSet(
         new Set(takeRight(presentations, 1)),
-        new Set(takeRight(nextPresentations, 1))
+        new Set(takeRight(nextPresentations, 1)),
       )
 
       console.log(`Visible speakers changed: ${!areVisibleSpeakersSame}`)
@@ -323,7 +329,7 @@ export class Timeline {
 
       if (areVisibleSpeakersSame && isVisiblePresentationSame) {
         console.log(
-          'No change in visible speakers or presentations. Continuing to next cut point.'
+          'No change in visible speakers or presentations. Continuing to next cut point.',
         )
         continue
       }
@@ -340,7 +346,7 @@ export class Timeline {
         visibleSpeakers,
         presentations.at(-1),
         point.time,
-        this.resolution
+        this.resolution,
       )
       cut.cause = point
       this.#cuts.push(cut)
@@ -360,7 +366,7 @@ export class Timeline {
         speakers: cut.speakers.map((s) => s.id),
         presentation: cut.presentation?.id,
         cause: cut.cause?.kind,
-      }))
+      })),
     )
   }
 
@@ -407,7 +413,7 @@ export class Timeline {
           kind: cut.cause?.kind,
           time: cut.cause?.time,
         },
-      }))
+      })),
     )
 
     const dir = dirname(outputPath)
@@ -445,7 +451,7 @@ export class Timeline {
       await mergeAV(audmixFile, vidconcatFile, outputPath, false)
     } finally {
       await Promise.all(
-        [...cutOutputs, audmixFile, vidconcatFile].map(unlinkNoThrow)
+        [...cutOutputs, audmixFile, vidconcatFile].map(unlinkNoThrow),
       )
     }
   }
@@ -465,7 +471,7 @@ type OriginalCutPointKind = 'openMic' | 'closeMic' | 'startTalk'
 
 // Create a generic interface that can be used with or without video-only cut points
 interface GenericSpeakerCutPoint<
-  T extends BaseCutPointKind = OriginalCutPointKind
+  T extends BaseCutPointKind = OriginalCutPointKind,
 > {
   time: number
   kind: T
@@ -491,7 +497,7 @@ class TimelineCut {
     public speakers: Participant[],
     public presentation?: Presentation,
     public startTime = 0,
-    public resolution: Resolution = '1080p'
+    public resolution: Resolution = '1080p',
   ) {}
 
   async render(allClips: Timeline['clips'], outputDir: string) {
@@ -502,8 +508,8 @@ class TimelineCut {
           clip.hasVideo &&
           overlaps(
             { start: this.startTime, end: this.endTime },
-            { start: clip.startTime, end: clip.endTime }
-          )
+            { start: clip.startTime, end: clip.endTime },
+          ),
       )
     const presentationClip = this.presentation
       ? allClips
@@ -550,7 +556,7 @@ class TimelineCut {
     }
 
     let presentationId = presentationClip
-      ? graph.rootVideoStreamsByInput.get(presentationClip) ?? null
+      ? (graph.rootVideoStreamsByInput.get(presentationClip) ?? null)
       : null
     if (presentationClip && presentationId) {
       const trimStart = this.startTime - presentationClip.startTime
@@ -579,7 +585,7 @@ class TimelineCut {
         graph,
         ['vout'],
         this.endTime - this.startTime,
-        this.resolution
+        this.resolution,
       )
     }
 

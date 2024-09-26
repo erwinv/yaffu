@@ -8,7 +8,7 @@ import { range, take } from './util.js'
 export async function genericCombine(
   inputs: Array<string | InputClip>,
   outputPath: string,
-  resolution: Resolution = '1080p'
+  resolution: Resolution = '1080p',
 ) {
   const graph = await new FilterGraph(inputs).init()
   compositeGrid(graph, ['out:v'], resolution)
@@ -19,7 +19,7 @@ export async function genericCombine(
 export function mixAudio(
   graph: FilterGraph,
   outputIds: string[],
-  delays: number[] = []
+  delays: number[] = [],
 ) {
   const normalizedIds = graph
     .pipeEach(graph.leafAudioStreams, (id) => `${id}:norm`)
@@ -53,7 +53,7 @@ export function mixAudio(
 export function renderSilence(
   graph: FilterGraph,
   outputIds: string[],
-  duration: number
+  duration: number,
 ) {
   graph
     .pipe([], outputIds, 'audio')
@@ -67,7 +67,7 @@ export function renderSilence(
 export function compositeGrid(
   graph: FilterGraph,
   outputIds: string[],
-  resolution: Resolution = '1080p'
+  resolution: Resolution = '1080p',
 ) {
   const n = graph.leafVideoStreams.size
   assert(1 <= n && n <= 16, `Invalid # of video streams (< 1 OR > 16): ${n}`)
@@ -127,7 +127,7 @@ export function compositeGrid(
 
   if (numTilesOnBottomRow > 0) {
     const botRowTilesIds = range(numTilesOnBottomRow).map(
-      (i) => tileIds[numTilesOnTopGrid + i]
+      (i) => tileIds[numTilesOnTopGrid + i],
     )
     graph
       .pipe(botRowTilesIds, ['botrow'])
@@ -155,13 +155,13 @@ export function compositePresentation(
   graph: FilterGraph,
   outputIds: string[],
   mainId?: string,
-  resolution: Resolution = '1080p'
+  resolution: Resolution = '1080p',
 ) {
   let othersIds: string[]
   if (mainId) {
     assert(
       graph.leafVideoStreams.has(mainId),
-      `Not a leaf video stream: [${mainId}]`
+      `Not a leaf video stream: [${mainId}]`,
     )
     const others = new Set(graph.leafVideoStreams)
     others.delete(mainId)
@@ -236,7 +236,7 @@ export function renderParticipantVideoTrack(
   outputId: string,
   track: Track,
   participant?: Participant,
-  resolution: Resolution = '720p'
+  resolution: Resolution = '720p',
 ) {
   const { width: W, height: H } = SIZE[resolution]
 
@@ -311,7 +311,7 @@ export function renderBlackScreen(
   graph: FilterGraph,
   outputIds: string[],
   duration: number,
-  resolution: Resolution = '1080p'
+  resolution: Resolution = '1080p',
 ) {
   const { width: W, height: H } = SIZE[resolution]
   graph.pipe([], outputIds, 'video').filter('color', [], {

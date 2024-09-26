@@ -5,7 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 importers:
-
   .:
     dependencies:
       es-toolkit:
@@ -20,21 +19,28 @@ importers:
         version: 22.7.2
 
 packages:
-
   '@types/node@22.7.2':
-    resolution: {integrity: sha512-866lXSrpGpgyHBZUa2m9YNWqHDjjM0aBTJlNtYaGEw4rqY/dcD7deRVTbBBAJelfA7oaGDbNftXF/TL/A6RgoA==}
+    resolution:
+      {
+        integrity: sha512-866lXSrpGpgyHBZUa2m9YNWqHDjjM0aBTJlNtYaGEw4rqY/dcD7deRVTbBBAJelfA7oaGDbNftXF/TL/A6RgoA==,
+      }
 
   es-toolkit@1.21.0:
-    resolution: {integrity: sha512-d1T3yyOBPYVbmLtjxsuzuIInuJaw7kcbtu/7sQyfM04hT98X8Z0bLKhYYYePdCBYH4GoA5AnWUyodV5xDcdrOw==}
+    resolution:
+      {
+        integrity: sha512-d1T3yyOBPYVbmLtjxsuzuIInuJaw7kcbtu/7sQyfM04hT98X8Z0bLKhYYYePdCBYH4GoA5AnWUyodV5xDcdrOw==,
+      }
 
   undici-types@6.19.8:
-    resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
+    resolution:
+      {
+        integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==,
+      }
 
   yaffu@file:..:
-    resolution: {directory: .., type: directory}
+    resolution: { directory: .., type: directory }
 
 snapshots:
-
   '@types/node@22.7.2':
     dependencies:
       undici-types: 6.19.8

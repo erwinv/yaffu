@@ -23,7 +23,10 @@ export class AudioStream extends BaseStream {
 export class VideoStream extends BaseStream {
   static framerate = 24
   static frameperiod = Number((1_000 / VideoStream.framerate).toFixed(3))
-  constructor(id: string, public resolution: Resolution = '1080p') {
+  constructor(
+    id: string,
+    public resolution: Resolution = '1080p',
+  ) {
     super(id)
   }
   serialize() {
@@ -61,7 +64,7 @@ export class Filter {
     }
     const options = this.options.map((v) => (isArray(v) ? v.join('|') : `${v}`))
     const kvOptions = [...this.keyValOptions.entries()].map(
-      ([k, v]) => `${k}=${isArray(v) ? v.join('|') : v}`
+      ([k, v]) => `${k}=${isArray(v) ? v.join('|') : v}`,
     )
     return `${this.name}=` + [...options, ...kvOptions].join(':')
   }
@@ -69,12 +72,15 @@ export class Filter {
 
 export class Pipe {
   filters: Filter[] = []
-  constructor(public inputs: string[], public outputs: string[]) {}
+  constructor(
+    public inputs: string[],
+    public outputs: string[],
+  ) {}
 
   filter(
     name: string,
     opts: unknown[] = [],
-    kvOpts: Record<string, unknown> = {}
+    kvOpts: Record<string, unknown> = {},
   ) {
     const filter = new Filter(name)
     filter.opts(opts)
@@ -88,7 +94,7 @@ export class Pipe {
     condition: boolean,
     name: string,
     opts: unknown[] = [],
-    kvOpts: Record<string, unknown> = {}
+    kvOpts: Record<string, unknown> = {},
   ) {
     if (!condition) return this
     return this.filter(name, opts, kvOpts)
@@ -127,7 +133,7 @@ export class FilterGraph {
 
     this.#mediaInit = (async () => {
       const inputMetadata = await Promise.all(
-        this.inputs.map((input) => input.meta ?? probe(input.path))
+        this.inputs.map((input) => input.meta ?? probe(input.path)),
       )
 
       for (const [i, meta] of inputMetadata.entries()) {
@@ -152,7 +158,7 @@ export class FilterGraph {
   pipe(
     _streamIds: Iterable<string>,
     outputStreamIds: string[],
-    streamType: 'audio' | 'video' | '' = ''
+    streamType: 'audio' | 'video' | '' = '',
   ) {
     const streamIds = [..._streamIds]
 
@@ -217,7 +223,7 @@ export class FilterGraph {
     _streamIds: Iterable<string>,
     genIntermediateId: (id: string) => string,
     finalId: string,
-    initId: string
+    initId: string,
   ) {
     const streamIds = [..._streamIds]
 
@@ -240,7 +246,7 @@ export class FilterGraph {
   map(
     _streamIds: Iterable<string>,
     outputPath: string,
-    resolution: Resolution = '1080p'
+    resolution: Resolution = '1080p',
   ) {
     const streamIds = [..._streamIds]
     const outputStreams: Stream[] = []

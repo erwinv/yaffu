@@ -52,7 +52,7 @@ export function setDiff<T>(xs: Set<T>, ys: Set<T>) {
       for (const x of xs) {
         if (!ys.has(x)) yield x
       }
-    })()
+    })(),
   )
 }
 
@@ -96,7 +96,7 @@ export function partition<T>(xs: T[], predicate: (x: T) => boolean) {
 }
 
 export function asyncNoThrow<Args extends readonly unknown[], R>(
-  fn: (...args: Args) => Promise<R>
+  fn: (...args: Args) => Promise<R>,
 ) {
   return async (...args: Args) => fn(...args).catch(noop)
 }

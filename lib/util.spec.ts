@@ -1,9 +1,5 @@
 import { expect, test } from 'vitest'
-import {
-  _range,
-  noop,
-  range
-} from './util.js'
+import { _range, noop, range } from './util.js'
 
 test('noop', () => {
   expect(noop()).toBe(undefined)
@@ -20,5 +16,9 @@ test('_range', () => {
 test('range', () => {
   const start = 12
   const N = 60
-  expect(range(N, start)).toEqual(Array(N).fill(null).map((_, i) => i + start))
+  expect(range(N, start)).toEqual(
+    Array(N)
+      .fill(null)
+      .map((_, i) => i + start),
+  )
 })

@@ -99,6 +99,7 @@ export const ENCODER = {
   opus: 'libopus',
   vp8: 'libvpx',
   vp9: 'libvpx-vp9',
+  gif: 'gif',
 } as const
 
 export type Codec = keyof typeof ENCODER
@@ -109,4 +110,5 @@ export const ENCODER_OPTS: Record<Codec, (res?: Resolution) => string[]> = {
   opus: () => ['-b:a 128k'],
   vp8: vp8Opts,
   vp9: vp9Opts,
+  gif: () => ['-loop 0'],
 }

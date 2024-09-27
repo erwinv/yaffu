@@ -31,6 +31,14 @@ export class VideoStream extends BaseStream {
   }
   serialize() {
     if (!this.codec) throw new Error(`Not an output stream: [${this.id}]`)
+
+    if (this.codec === 'gif') {
+      return [
+        `-map "[${this.id}]"`,
+        ...ENCODER_OPTS[this.codec](this.resolution),
+      ].join(' ')
+    }
+
     return [
       `-map "[${this.id}]"`,
       `-c:v ${ENCODER[this.codec]}`,
@@ -265,6 +273,9 @@ export class FilterGraph {
         : new VideoStream(streamId, resolution)
 
       switch (outputExt) {
+        case '.gif':
+          stream.codec = 'gif'
+          break
         case '.opus':
         case '.webm':
           stream.codec = isAudio ? 'opus' : 'vp9'

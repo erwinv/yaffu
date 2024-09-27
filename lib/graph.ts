@@ -112,6 +112,7 @@ export class Pipe {
     return [
       ...this.inputs.map((streamId) => `[${streamId}]`),
       this.filters.map((f) => f.serialize()).join(','),
+      // TODO FIXME automate `split` filter if outputs > 1 ???
       ...this.outputs.map((streamId) => `[${streamId}]`),
     ].join('')
   }

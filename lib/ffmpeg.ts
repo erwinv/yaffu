@@ -8,6 +8,8 @@ import { Readable } from 'node:stream'
 import { Codec, ENCODER } from './codec.js'
 import { FilterGraph } from './graph.js'
 import { unlinkNoThrow } from './util.js'
+import { path as ffmpegBinPath } from '@ffmpeg-installer/ffmpeg'
+import { path as ffprobeBinPath } from '@ffprobe-installer/ffprobe'
 
 const console = new Console(process.stderr)
 
@@ -48,7 +50,7 @@ export interface ContainerMetadata {
 
 export async function probe(path: string) {
   const ffprobe = spawn(
-    'ffprobe',
+    ffprobeBinPath,
     [
       '-v error',
       '-print_format json=compact=1',
@@ -87,7 +89,7 @@ export async function concatDemux(
   await writeFile(concatListPath, files.join('\n'))
 
   const ffmpeg = spawn(
-    'ffmpeg',
+    ffmpegBinPath,
     [
       verbose ? '-hide_banner' : '-v error',
       ...(outputPath.endsWith('.mp4') ? ['-auto_convert 1'] : []),
@@ -136,7 +138,7 @@ export async function mux(
   console.dir(graph.pipes.map((p) => p.serialize()))
 
   const ffmpeg = spawn(
-    'ffmpeg',
+    ffmpegBinPath,
     [
       verbose ? '-hide_banner' : '-v warning',
       ...inputs.flatMap((input) => [
@@ -220,7 +222,7 @@ export async function mergeAV(
   }
 
   const ffmpeg = spawn(
-    'ffmpeg',
+    ffmpegBinPath,
     [
       verbose ? '-hide_banner' : '-v error',
       `-i ${audio}`,

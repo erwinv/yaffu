@@ -3,9 +3,7 @@
   "version": "2.2.0",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
-  "files": [
-    "./build"
-  ],
+  "files": ["./build"],
   "exports": "./build/lib/index.js",
   "types": "./build/lib/index.d.ts",
   "scripts": {
@@ -19,11 +17,7 @@
     "type": "git",
     "url": "git+https://github.com/erwinv/yaffu.git"
   },
-  "keywords": [
-    "ffmpeg",
-    "video",
-    "audio"
-  ],
+  "keywords": ["ffmpeg", "video", "audio"],
   "author": "Erwin Villejo",
   "license": "ISC",
   "bugs": {

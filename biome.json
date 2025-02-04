@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "formatter": {
-    "indentStyle": "tab"
+    "indentStyle": "space"
   },
   "organizeImports": {
     "enabled": true

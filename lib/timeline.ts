@@ -7,10 +7,10 @@ import {
   renderParticipantVideoTrack,
   renderSilence,
 } from './api.js'
-import { Resolution } from './codec.js'
+import type { Resolution } from './codec.js'
 import {
   concatDemux,
-  ContainerMetadata,
+  type ContainerMetadata,
   mergeAV,
   mux,
   probe,
@@ -82,7 +82,7 @@ export class Timeline {
   // CHANGE: Updated Timeline class constructor
   constructor(
     public resolution: Resolution = '1080p',
-    public includeVideoOnlyCuts: boolean = false, // New option to enable video-only cuts
+    public includeVideoOnlyCuts = false, // New option to enable video-only cuts
   ) {}
 
   get duration() {
@@ -353,7 +353,7 @@ export class Timeline {
       console.log(`Created new cut: ${JSON.stringify(cut)}`)
     }
     const last = this.#cuts.pop()
-    if (last && last.endTime < Infinity) {
+    if (last && last.endTime < Number.POSITIVE_INFINITY) {
       this.#cuts.push(last)
       console.log(`Re-added last cut with end time ${last.endTime}`)
     }
@@ -491,7 +491,7 @@ interface PresentationCutPoint {
 }
 
 class TimelineCut {
-  endTime = Infinity
+  endTime = Number.POSITIVE_INFINITY
   cause?: SpeakerCutPoint | PresentationCutPoint
   constructor(
     public speakers: Participant[],
@@ -533,7 +533,7 @@ class TimelineCut {
         const trimEnd =
           this.endTime < clip.endTime
             ? trimStart + (this.endTime - this.startTime)
-            : Infinity
+            : Number.POSITIVE_INFINITY
         const delay = Math.max(0, clip.startTime - this.startTime)
         return [
           {
@@ -563,15 +563,15 @@ class TimelineCut {
       const trimEnd =
         this.endTime < presentationClip.endTime
           ? trimStart + (this.endTime - this.startTime)
-          : Infinity
-      if (trimStart > 0 || trimEnd < Infinity) {
+          : Number.POSITIVE_INFINITY
+      if (trimStart > 0 || trimEnd < Number.POSITIVE_INFINITY) {
         const trimmedId = `${presentationId}:trim`
         graph
           .pipe([presentationId], [trimmedId])
           .filterIf(trimStart > 0, 'trim', [], {
             start: trimStart / 1000,
           })
-          .filterIf(trimEnd < Infinity, 'trim', [], {
+          .filterIf(trimEnd < Number.POSITIVE_INFINITY, 'trim', [], {
             end: trimEnd / 1000,
           })
         presentationId = trimmedId

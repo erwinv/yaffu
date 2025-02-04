@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert'
-import { Resolution, SIZE } from './codec.js'
+import { type Resolution, SIZE } from './codec.js'
 import { mux } from './ffmpeg.js'
 import { FilterGraph } from './graph.js'
-import { InputClip, Participant, Track } from './timeline.js'
+import type { InputClip, Participant, Track } from './timeline.js'
 import { range, take } from './util.js'
 
 export async function genericCombine(
@@ -250,14 +250,14 @@ export function renderParticipantVideoTrack(
     .buildEach((pipe, i) => {
       const clip = track.clips[i]
       const trimStart = clip.trim?.start ?? 0
-      const trimEnd = clip.trim?.end ?? Infinity
+      const trimEnd = clip.trim?.end ?? Number.POSITIVE_INFINITY
       const delay = clip.delay ?? 0
       const isRawVideoStream = graph.rootVideoStreams.has(pipe.inputs[i])
       pipe
         .filterIf(trimStart > 0, 'trim', [], {
           start: trimStart / 1000,
         })
-        .filterIf(trimEnd < Infinity, 'trim', [], {
+        .filterIf(trimEnd < Number.POSITIVE_INFINITY, 'trim', [], {
           end: trimEnd / 1000,
         })
         .filter('setpts', ['PTS-STARTPTS'])

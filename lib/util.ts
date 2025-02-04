@@ -18,7 +18,7 @@ export function range(...args: Parameters<typeof _range>) {
 }
 
 export function* monotonicId(prefix = '') {
-  for (const x of _range(Infinity)) {
+  for (const x of _range(Number.POSITIVE_INFINITY)) {
     yield `${prefix}${x}`
   }
 }

@@ -1,7 +1,7 @@
 import { extname } from 'node:path'
-import { Codec, ENCODER, ENCODER_OPTS, Resolution } from './codec.js'
+import { type Codec, ENCODER, ENCODER_OPTS, type Resolution } from './codec.js'
 import { probe } from './ffmpeg.js'
-import { InputClip } from './timeline.js'
+import type { InputClip } from './timeline.js'
 import { isArray, isString } from './util.js'
 
 export class BaseStream {

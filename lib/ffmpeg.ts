@@ -5,8 +5,8 @@ import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
-import { Codec, ENCODER } from './codec.js'
-import { FilterGraph } from './graph.js'
+import { type Codec, ENCODER } from './codec.js'
+import type { FilterGraph } from './graph.js'
 import { unlinkNoThrow } from './util.js'
 import { path as ffmpegBinPath } from '@ffmpeg-installer/ffmpeg'
 import { path as ffprobeBinPath } from '@ffprobe-installer/ffprobe'
@@ -107,7 +107,7 @@ export async function concatDemux(
     await new Promise<void>((resolve, reject) => {
       ffmpeg.on('error', reject)
       ffmpeg.on('close', (code) => {
-        if (code !== 0) reject(new FFmpegError(code ?? NaN))
+        if (code !== 0) reject(new FFmpegError(code ?? Number.NaN))
         else resolve()
       })
     })
@@ -166,7 +166,7 @@ export async function mux(
       ffmpeg.on('error', errorHandler)
       ffmpeg.on('close', (code) => {
         if (code !== 0) {
-          errorHandler(new FFmpegError(code ?? NaN))
+          errorHandler(new FFmpegError(code ?? Number.NaN))
           if (bestEffort) resolve()
         } else resolve()
       })
@@ -238,7 +238,7 @@ export async function mergeAV(
     await new Promise<void>((resolve, reject) => {
       ffmpeg.on('error', reject)
       ffmpeg.on('close', (code) => {
-        if (code !== 0) reject(new FFmpegError(code ?? NaN))
+        if (code !== 0) reject(new FFmpegError(code ?? Number.NaN))
         else resolve()
       })
     })

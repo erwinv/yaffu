@@ -129,8 +129,8 @@ export async function mux(
   const outputs = [...graph.outputs.entries()]
 
   console.table(inputs)
-  for (const [path, streams] of outputs) {
-    console.info(path)
+  for (const [path, { streams, opts }] of outputs) {
+    console.info(path, opts)
     console.table(streams)
   }
   console.dir(graph.pipes.map((p) => p.serialize()))
@@ -144,9 +144,9 @@ export async function mux(
         `-i "${input.path}"`,
       ]),
       '-/filter_complex pipe:',
-      ...outputs.flatMap(([outputPath, streams]) => [
+      ...outputs.flatMap(([outputPath, { streams, opts }]) => [
         ...streams.map((stream) => stream.serialize()),
-        '-y',
+        ...['-y'].concat(opts ?? []),
         outputPath,
       ]),
     ],

@@ -120,7 +120,13 @@ export class Pipe {
 
 export class FilterGraph {
   inputs: InputClip[] = []
-  outputs: Map<string, Stream[]> = new Map()
+  outputs: Map<
+    string,
+    {
+      streams: Stream[]
+      opts?: string[]
+    }
+  > = new Map()
   pipes: Pipe[] = []
   rootAudioStreams: Set<string> = new Set()
   rootVideoStreams: Set<string> = new Set()
@@ -256,6 +262,7 @@ export class FilterGraph {
     _streamIds: Iterable<string>,
     outputPath: string,
     resolution: Resolution = '1080p',
+    outputOpts?: string[],
   ) {
     const streamIds = [..._streamIds]
     const outputStreams: Stream[] = []
@@ -290,7 +297,10 @@ export class FilterGraph {
       outputStreams.push(stream)
     }
 
-    this.outputs.set(outputPath, outputStreams)
+    this.outputs.set(outputPath, {
+      streams: outputStreams,
+      opts: outputOpts,
+    })
     return this
   }
 

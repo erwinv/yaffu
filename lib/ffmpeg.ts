@@ -145,7 +145,7 @@ export async function mux(
         ...(input.opts ?? []),
         `-i "${input.path}"`,
       ]),
-      '-/filter_complex pipe:',
+      '-filter_complex_script pipe:',
       ...outputs.flatMap(([outputPath, { streams, opts }]) => [
         ...streams.map((stream) => stream.serialize()),
         ...['-y'].concat(opts ?? []),

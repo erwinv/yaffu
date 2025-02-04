@@ -1,6 +1,6 @@
 {
   "name": "yaffu",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
   "files": ["./build"],

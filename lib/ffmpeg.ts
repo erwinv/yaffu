@@ -5,8 +5,8 @@ import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
-import { path as ffmpegBinPath } from '@ffmpeg-installer/ffmpeg'
-import { path as ffprobeBinPath } from '@ffprobe-installer/ffprobe'
+// import { path as ffmpegBinPath } from '@ffmpeg-installer/ffmpeg'
+// import { path as ffprobeBinPath } from '@ffprobe-installer/ffprobe'
 import { type Codec, ENCODER } from './codec.js'
 import type { FilterGraph } from './graph.js'
 import { unlinkNoThrow } from './util.js'
@@ -50,7 +50,7 @@ export interface ContainerMetadata {
 
 export async function probe(path: string) {
   const ffprobe = spawn(
-    ffprobeBinPath,
+    'ffprobe',
     [
       '-v error',
       '-print_format json=compact=1',
@@ -89,7 +89,7 @@ export async function concatDemux(
   await writeFile(concatListPath, files.join('\n'))
 
   const ffmpeg = spawn(
-    ffmpegBinPath,
+    'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v error',
       ...(outputPath.endsWith('.mp4') ? ['-auto_convert 1'] : []),
@@ -138,7 +138,7 @@ export async function mux(
   console.dir(graph.pipes.map((p) => p.serialize()))
 
   const ffmpeg = spawn(
-    ffmpegBinPath,
+    'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v warning',
       ...inputs.flatMap((input) => [
@@ -222,7 +222,7 @@ export async function mergeAV(
   }
 
   const ffmpeg = spawn(
-    ffmpegBinPath,
+    'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v error',
       `-i ${audio}`,

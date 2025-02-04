@@ -1,6 +1,6 @@
 {
   "name": "yaffu",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Yet Another FFmpeg Util",
   "type": "module",
   "files": ["./build"],
@@ -35,9 +35,5 @@
   "engines": {
     "node": ">=22 <23"
   },
-  "packageManager": "pnpm@10.1.0+sha512.c89847b0667ddab50396bbbd008a2a43cf3b581efd59cf5d9aa8923ea1fb4b8106c041d540d08acb095037594d73ebc51e1ec89ee40c88b30b8a66c0fae0ac1b",
-  "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "@ffprobe-installer/ffprobe": "^2.1.2"
-  }
+  "packageManager": "pnpm@10.1.0+sha512.c89847b0667ddab50396bbbd008a2a43cf3b581efd59cf5d9aa8923ea1fb4b8106c041d540d08acb095037594d73ebc51e1ec89ee40c88b30b8a66c0fae0ac1b"
 }

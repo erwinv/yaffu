@@ -154,9 +154,10 @@ export function compositeGrid(
 export function compositePresentation(
   graph: FilterGraph,
   outputIds: string[],
-  mainId?: string,
+  _mainId?: string,
   resolution: Resolution = '1080p',
 ) {
+  let mainId = _mainId
   let othersIds: string[]
   if (mainId) {
     assert(

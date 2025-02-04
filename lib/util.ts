@@ -23,7 +23,8 @@ export function* monotonicId(prefix = '') {
   }
 }
 
-export function* _take<T>(xs: Iterable<T>, n: number) {
+export function* _take<T>(xs: Iterable<T>, N: number) {
+  let n = N
   for (const x of xs) {
     if (n-- > 0) yield x
     else break
@@ -39,7 +40,7 @@ export function takeRight<T>(xs: Iterable<T>, n: number) {
 }
 
 export function isArray<T>(x: T | T[]): x is Array<T> {
-  return x instanceof Array
+  return Array.isArray(x)
 }
 
 export function isString(x: unknown): x is string {

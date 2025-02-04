@@ -1,9 +1,9 @@
-import { noop } from 'es-toolkit'
 import { createWriteStream } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { noop } from 'es-toolkit'
 
 export async function downloadFile(url, dir) {
   const filename = basename(url.pathname)

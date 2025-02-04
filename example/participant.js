@@ -1,4 +1,4 @@
-import { ffmux, FilterGraph, renderParticipantVideoTrack } from 'yaffu'
+import { FilterGraph, ffmux, renderParticipantVideoTrack } from 'yaffu'
 import { file, maybeDownloadInputFile } from './index.js'
 
 await maybeDownloadInputFile()

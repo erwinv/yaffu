@@ -74,7 +74,7 @@ export class Filter {
     const kvOptions = [...this.keyValOptions.entries()].map(
       ([k, v]) => `${k}=${isArray(v) ? v.join('|') : v}`,
     )
-    return `${this.name}=` + [...options, ...kvOptions].join(':')
+    return `${this.name}=${[...options, ...kvOptions].join(':')}`
   }
 }
 
@@ -173,8 +173,9 @@ export class FilterGraph {
   pipe(
     _streamIds: Iterable<string>,
     outputStreamIds: string[],
-    streamType: 'audio' | 'video' | '' = '',
+    _streamType: 'audio' | 'video' | '' = '',
   ) {
+    let streamType = _streamType
     const streamIds = [..._streamIds]
 
     for (const streamId of streamIds) {
@@ -288,8 +289,8 @@ export class FilterGraph {
         case '.webm':
           stream.codec = isAudio ? 'opus' : 'vp9'
           break
-        case '.aac':
-        case '.mp4':
+        // case '.aac':
+        // case '.mp4':
         default:
           stream.codec = isAudio ? 'aac' : 'h264'
       }

@@ -9,8 +9,8 @@ import {
 } from './api.js'
 import type { Resolution } from './codec.js'
 import {
-  concatDemux,
   type ContainerMetadata,
+  concatDemux,
   mergeAV,
   mux,
   probe,
@@ -418,8 +418,8 @@ export class Timeline {
 
     const dir = dirname(outputPath)
     const base = basename(outputPath, extname(outputPath))
-    const vidconcatFile = joinPath(dir, base + '_concat.mp4')
-    const audmixFile = joinPath(dir, base + '_mix.aac')
+    const vidconcatFile = joinPath(dir, `${base}_concat.mp4`)
+    const audmixFile = joinPath(dir, `${base}_mix.aac`)
 
     const cutOutputs: string[] = []
     for (const cut of this.#cuts) {

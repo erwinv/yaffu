@@ -228,6 +228,8 @@ export async function mergeAV(
       `-i ${audio}`,
       `-i ${video}`,
       ...codecOpts,
+      `-map 0:a:0`,
+      `-map 1:v:0`,
       '-y',
       output,
     ],

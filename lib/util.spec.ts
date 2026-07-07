@@ -1,4 +1,3 @@
-import { expect, test } from 'vitest'
 import { _range, noop, range } from './util.js'
 
 test('noop', () => {

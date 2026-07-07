@@ -2,38 +2,45 @@
   "name": "yaffu",
   "version": "2.4.2",
   "description": "Yet Another FFmpeg Util",
+  "keywords": [
+    "audio",
+    "ffmpeg",
+    "video"
+  ],
+  "homepage": "https://github.com/erwinv/yaffu#readme",
+  "bugs": {
+    "url": "https://github.com/erwinv/yaffu/issues"
+  },
+  "license": "ISC",
+  "author": "Erwin Villejo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erwinv/yaffu.git"
+  },
+  "files": [
+    "./build"
+  ],
   "type": "module",
-  "files": ["./build"],
-  "exports": "./build/lib/index.js",
   "types": "./build/lib/index.d.ts",
+  "exports": "./build/lib/index.js",
   "scripts": {
-    "prebuild": "biome check",
-    "build": "tsc",
+    "prebuild": "oxlint --type-aware",
+    "build": "tsc --build tsconfig.build.json",
     "pretest": "pnpm build",
     "test": "vitest",
     "dev": "tsc -w",
     "prepublishOnly": "pnpm build"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/erwinv/yaffu.git"
-  },
-  "keywords": ["ffmpeg", "video", "audio"],
-  "author": "Erwin Villejo",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/erwinv/yaffu/issues"
-  },
-  "homepage": "https://github.com/erwinv/yaffu#readme",
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@tsconfig/node20": "^20.1.4",
-    "@types/node": "^22.13.1",
-    "typescript": "^5.7.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.13.2",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
+    "oxlint-tsgolint": "^0.24.0",
+    "typescript": "7.0.1-rc",
     "vitest": "^2.1.1"
   },
   "engines": {
-    "node": ">=22 <23"
-  },
-  "packageManager": "pnpm@10.1.0+sha512.c89847b0667ddab50396bbbd008a2a43cf3b581efd59cf5d9aa8923ea1fb4b8106c041d540d08acb095037594d73ebc51e1ec89ee40c88b30b8a66c0fae0ac1b"
+    "node": ">=24 <25"
+  }
 }

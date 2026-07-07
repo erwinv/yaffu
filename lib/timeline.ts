@@ -406,6 +406,7 @@ export class Timeline {
     this.#findCuts()
     console.table(
       this.#cuts.map((cut) => ({
+        // oxlint-disable-next-line no-misused-spread
         ...cut,
         speakers: cut.speakers.map((s) => s.name),
         presentation: cut.presentation?.title,

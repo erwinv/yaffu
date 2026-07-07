@@ -51,18 +51,18 @@ export class VideoStream extends BaseStream {
 type Stream = AudioStream | VideoStream
 
 export class Filter {
-  options: unknown[] = []
-  keyValOptions: Map<string, unknown> = new Map()
+  options: FilterOpts = []
+  keyValOptions: Map<string, FilterOpt | FilterOpt[]> = new Map()
   constructor(public name: string) {}
-  opt(value: unknown) {
+  opt(value: FilterOpt) {
     this.options.push(value)
     return this
   }
-  opts(values: unknown[]) {
+  opts(values: FilterOpts) {
     this.options.push(...values)
     return this
   }
-  set(key: string, value: unknown) {
+  set(key: string, value: FilterOpt | FilterOpt[]) {
     this.keyValOptions.set(key, value)
     return this
   }
@@ -78,6 +78,10 @@ export class Filter {
   }
 }
 
+export type FilterOpt = string | number | boolean
+export type FilterOpts = Array<FilterOpt | FilterOpt[]>
+export type FilterKVOpts = Record<string, FilterOpt | FilterOpt[]>
+
 export class Pipe {
   filters: Filter[] = []
   constructor(
@@ -87,8 +91,8 @@ export class Pipe {
 
   filter(
     name: string,
-    opts: unknown[] = [],
-    kvOpts: Record<string, unknown> = {},
+    opts: FilterOpts = [],
+    kvOpts: FilterKVOpts = {},
   ) {
     const filter = new Filter(name)
     filter.opts(opts)
@@ -101,8 +105,8 @@ export class Pipe {
   filterIf(
     condition: boolean,
     name: string,
-    opts: unknown[] = [],
-    kvOpts: Record<string, unknown> = {},
+    opts: FilterOpts = [],
+    kvOpts: FilterKVOpts = {},
   ) {
     if (!condition) return this
     return this.filter(name, opts, kvOpts)
@@ -139,7 +143,7 @@ export class FilterGraph {
       const input = isString(input_) ? { path: input_ } : input_
       this.inputs.push(input)
     }
-    this.init()
+    void this.init()
   }
 
   #mediaInit?: Promise<void>
@@ -148,7 +152,7 @@ export class FilterGraph {
 
     this.#mediaInit = (async () => {
       const inputMetadata = await Promise.all(
-        this.inputs.map((input) => input.meta ?? probe(input.path)),
+        this.inputs.map((input) => input.meta ? Promise.resolve(input.meta) : probe(input.path)),
       )
 
       for (const [i, meta] of inputMetadata.entries()) {

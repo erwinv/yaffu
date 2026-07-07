@@ -4,7 +4,6 @@ import { Console } from 'node:console'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
-import { Readable } from 'node:stream'
 // import { path as ffmpegBinPath } from '@ffmpeg-installer/ffmpeg'
 // import { path as ffprobeBinPath } from '@ffprobe-installer/ffprobe'
 import { type Codec, ENCODER } from './codec.js'
@@ -51,21 +50,13 @@ export interface ContainerMetadata {
 export async function probe(path: string) {
   const ffprobe = spawn(
     'ffprobe',
-    [
-      '-v error',
-      '-print_format json=compact=1',
-      '-show_format',
-      '-show_streams',
-      `"${path}"`,
-    ],
+    ['-v error', '-print_format json=compact=1', '-show_format', '-show_streams', `"${path}"`],
     { shell: true, stdio: ['ignore', 'pipe', 'inherit'] },
   )
 
   return new Promise<ContainerMetadata>((resolve, reject) => {
     const out = [] as string[]
-    ffprobe.stdout.on('data', (chunk: Buffer) =>
-      out.push(chunk.toString('utf8')),
-    )
+    ffprobe.stdout.on('data', (chunk: Buffer) => out.push(chunk.toString('utf8')))
     ffprobe.on('error', reject)
     ffprobe.on('close', (code) => {
       if (code !== 0) reject()
@@ -74,11 +65,7 @@ export async function probe(path: string) {
   })
 }
 
-export async function concatDemux(
-  clipPaths: string[],
-  outputPath: string,
-  verbose = true,
-) {
+export async function concatDemux(clipPaths: string[], outputPath: string, verbose = true) {
   const concatListPath = join(
     tmpdir(),
     `${basename(outputPath, extname(outputPath))}_concatList.txt`,
@@ -120,11 +107,7 @@ export async function concatDemux(
   }
 }
 
-export async function mux(
-  graph: FilterGraph,
-  verbose = true,
-  bestEffort = false,
-) {
+export async function mux(graph: FilterGraph, verbose = true, bestEffort = false) {
   if (graph.outputs.size === 0) throw new Error('No defined output/s')
 
   const inputs = graph.inputs
@@ -141,11 +124,9 @@ export async function mux(
     'ffmpeg',
     [
       verbose ? '-hide_banner' : '-v warning',
-      ...inputs.flatMap((input) => [
-        ...(input.opts ?? []),
-        `-i "${input.path}"`,
-      ]),
-      '-filter_complex_script pipe:',
+      ...inputs.flatMap((input) => [...(input.opts ?? []), `-i "${input.path}"`]),
+      '-filter_complex',
+      `"${graph.serialize()}"`,
       ...outputs.flatMap(([outputPath, { streams, opts }]) => [
         ...streams.map((stream) => stream.serialize()),
         ...['-y'].concat(opts ?? []),
@@ -161,7 +142,7 @@ export async function mux(
   try {
     await new Promise<void>((resolve, reject) => {
       const ignoreError = bestEffort // continue even if FFmpeg complains about corrupted inputs
-      const errorHandler = ignoreError ? console.error : reject
+      const errorHandler = ignoreError ? console.error.bind(console) : reject
 
       ffmpeg.on('error', errorHandler)
       ffmpeg.on('close', (code) => {
@@ -170,8 +151,6 @@ export async function mux(
           if (bestEffort) resolve()
         } else resolve()
       })
-
-      Readable.from(graph.serialize()).pipe(ffmpeg.stdin)
     })
   } catch (e) {
     await Promise.all(outputs.map(([outputPath]) => unlinkNoThrow(outputPath)))
@@ -179,12 +158,7 @@ export async function mux(
   }
 }
 
-export async function mergeAV(
-  audio: string,
-  video: string,
-  output: string,
-  verbose = true,
-) {
+export async function mergeAV(audio: string, video: string, output: string, verbose = true) {
   const ext = extname(output)
   assert(
     ['.mp4', '.webm'].includes(ext),
@@ -195,17 +169,11 @@ export async function mergeAV(
   const targetVideoCodec: Codec = ext === '.mp4' ? 'h264' : 'vp9'
 
   const inputAudioMeta = await probe(audio)
-  assert(
-    inputAudioMeta.streams[0].codec_type === 'audio',
-    `Not an audio file: ${audio}`,
-  )
+  assert(inputAudioMeta.streams[0].codec_type === 'audio', `Not an audio file: ${audio}`)
   const inputAudioCodec = inputAudioMeta.streams[0].codec_name
 
   const inputVideoMeta = await probe(video)
-  assert(
-    inputVideoMeta.streams[0].codec_type === 'video',
-    `Not a video file: ${video}`,
-  )
+  assert(inputVideoMeta.streams[0].codec_type === 'video', `Not a video file: ${video}`)
   const inputVideoCodec = inputVideoMeta.streams[0].codec_name
 
   const codecOpts: string[] = []
@@ -213,12 +181,8 @@ export async function mergeAV(
   const shouldTranscodeVideo = inputVideoCodec !== targetVideoCodec
   if (!shouldTranscodeAudio && !shouldTranscodeVideo) codecOpts.push('-c copy')
   else {
-    codecOpts.push(
-      `-c:a ${shouldTranscodeAudio ? ENCODER[targetAudioCodec] : 'copy'}`,
-    )
-    codecOpts.push(
-      `-c:v ${shouldTranscodeVideo ? ENCODER[targetVideoCodec] : 'copy'}`,
-    )
+    codecOpts.push(`-c:a ${shouldTranscodeAudio ? ENCODER[targetAudioCodec] : 'copy'}`)
+    codecOpts.push(`-c:v ${shouldTranscodeVideo ? ENCODER[targetVideoCodec] : 'copy'}`)
   }
 
   const ffmpeg = spawn(
